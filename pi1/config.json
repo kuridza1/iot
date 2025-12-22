@@ -1,0 +1,9 @@
+{
+  "DS1": { "enabled": true, "simulated": true },
+  "DUS1": { "enabled": true, "simulated": true },
+  "DPIR1": { "enabled": true, "simulated": true },
+  "DMS": { "enabled": true, "simulated": true },
+
+  "DL": { "enabled": true },
+  "DB": { "enabled": true }
+}
