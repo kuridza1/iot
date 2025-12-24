@@ -1,67 +1,134 @@
-import json
+import threading
 import time
+from typing import Dict, Any
 
-from sensors import DoorSensor, UltrasonicSensor, PIRSensor, MembraneSwitch
-from actuators import DoorLight, DoorBuzzer
+from actuators.buzzer import Buzzer
+from actuators.led import Led
+from helper import GPIO
+from sensors import run_button_loop, run_pir_loop, run_ultrasonic_loop
+from settings import load_settings
 
-with open("config.json") as f:
-    config = json.load(f)
+def ts() -> str:
+    return time.strftime('%H:%M:%S', time.localtime())
 
-sensors = {}
+def print_event(label: str, payload: str) -> None:
+    print("=" * 28)
+    print(f"[{ts()}] {label}")
+    print(payload)
 
-if config["DS1"]["enabled"]:
-    sensors["DS1"] = DoorSensor()
+def main() -> None:
+    cfg: Dict[str, Any] = load_settings("settings.json")
 
-if config["DUS1"]["enabled"]:
-    sensors["DUS1"] = UltrasonicSensor()
+    stop_event = threading.Event()
+    threads: list[threading.Thread] = []
 
-if config["DPIR1"]["enabled"]:
-    sensors["DPIR1"] = PIRSensor()
+    led_cfg = cfg.get("DL", {"simulated": True, "pin": 21, "active_high": True})
+    buz_cfg = cfg.get("DB", {"simulated": True, "pin": 22, "active_high": True})
 
-if config["DMS"]["enabled"]:
-    sensors["DMS"] = MembraneSwitch()
+    actuators = {
+        "DL": Led(simulated=bool(led_cfg.get("simulated", True)),
+                  pin=int(led_cfg.get("pin", 21)),
+                  active_high=bool(led_cfg.get("active_high", True))),
+        "DB": Buzzer(simulated=bool(buz_cfg.get("simulated", True)),
+                     pin=int(buz_cfg.get("pin", 22)),
+                     active_high=bool(buz_cfg.get("active_high", True))),
+    }
 
-door_light = DoorLight() if config["DL"]["enabled"] else None
-door_buzzer = DoorBuzzer() if config["DB"]["enabled"] else None
+    ds_cfg = cfg.get("DS1", {"delay_sec": 1.5})
+    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5})
+    dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0})
 
-def read_sensors():
-    print("\n--- SENSOR READINGS ---")
-    for name, sensor in sensors.items():
-        value = sensor.read()
-        print(f"{name}: {value}")
+    t = threading.Thread(target=run_button_loop,
+                         args=(float(ds_cfg.get("delay_sec", 1.5)),
+                               lambda pressed: print_event("DS1 (Button)", f"pressed={pressed}"),
+                               stop_event),
+                         daemon=True)
+    t.start(); threads.append(t)
 
-def actuator_menu():
-    print("\n--- ACTUATOR CONTROL ---")
-    print("1 - Door Light ON")
-    print("2 - Door Light OFF")
-    print("3 - Door Buzzer")
-    print("0 - Back")
+    t = threading.Thread(target=run_pir_loop,
+                         args=(float(dpir_cfg.get("delay_sec", 1.5)),
+                               lambda motion: print_event("DPIR1 (PIR)", f"motion={motion}"),
+                               stop_event),
+                         daemon=True)
+    t.start(); threads.append(t)
 
-    choice = input("> ")
+    t = threading.Thread(target=run_ultrasonic_loop,
+                         args=(float(dus_cfg.get("delay_sec", 2.0)),
+                               lambda d: print_event("DUS1 (Ultrasonic)", f"distance_cm={d}"),
+                               stop_event),
+                         daemon=True)
+    t.start(); threads.append(t)
 
-    if choice == "1" and door_light:
-        door_light.on()
-    elif choice == "2" and door_light:
-        door_light.off()
-    elif choice == "3" and door_buzzer:
-        door_buzzer.buzz()
+    # CLI
+    help_text = (
+        "\nCOMMANDS\n"
+        "[1] led on|off\n"
+        "[2] buzzer on|off\n"
+        "[3] beep [seconds]\n"
+        "[S] status\n"
+        "[H] help\n"
+        "[X] exit\n"
+    )
+    print(help_text)
 
-while True:
-    print("\n==== PI1 SMART DOOR SYSTEM ====")
-    print("1 - Read sensors")
-    print("2 - Control actuators")
-    print("0 - Exit")
+    try:
+        while not stop_event.is_set():
+            try:
+                cmd = input("pi1> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                cmd = "exit"
 
-    cmd = input("> ")
+            if not cmd:
+                continue
 
-    if cmd == "1":
-        read_sensors()
-    elif cmd == "2":
-        actuator_menu()
-    elif cmd == "0":
-        print("Exiting...")
-        break
-    else:
-        print("Invalid option")
+            parts = cmd.split()
+            c = parts[0].lower()
 
-    time.sleep(0.5)
+            if c == "help":
+                print(help_text)
+            elif c == "status":
+                print("Actuators:", ", ".join(sorted(actuators.keys())))
+            elif c == "led" and len(parts) >= 2:
+                if parts[1].lower() == "on":
+                    actuators["DL"].on()
+                    print("[DL] Lights are on.")
+                elif parts[1].lower() == "off":
+                    actuators["DL"].off()
+                    print("[DL] Lights are off.")
+            elif c == "buzzer" and len(parts) >= 2:
+                if parts[1].lower() == "on":
+                    actuators["DB"].on()
+                    print("[DB] Buzzer is on.")
+                elif parts[1].lower() == "off":
+                    actuators["DB"].off()
+                    print("[DB] Buzzer is off.")
+            elif c == "beep" and actuators["DB"].isOn():
+                seconds = 1
+                if len(parts) >= 2:
+                    try:
+                        seconds = float(parts[1])
+                    except ValueError:
+                        pass
+                actuators["DB"].beep(seconds)
+                print("BEEP!")
+            elif c == "beep" and not actuators["DB"].isOn():
+                print("You can't beep when buzzer is off.")
+            elif c == "exit":
+                stop_event.set()
+            else:
+                print("Unknown command. Type 'help'.")
+    finally:
+        stop_event.set()
+        time.sleep(0.1)
+        for a in actuators.values():
+            try:
+                a.cleanup()
+            except Exception:
+                pass
+        try:
+            GPIO.cleanup()
+        except Exception:
+            pass
+
+if __name__ == "__main__":
+    main()
