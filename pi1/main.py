@@ -19,7 +19,7 @@ def event(label: str, payload: str) -> None:
 
 
 def print_menu() -> None:
-    print("\n==== PI1 SMART DOOR (SIMPLE) ====")
+    print("\n==== PI1 SMART DOOR ====")
     print("1) Status")
     print("2) Toggle Door Light (DL)")
     print("3) Toggle Buzzer (DB)")
