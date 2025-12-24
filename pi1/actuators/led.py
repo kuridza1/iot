@@ -20,6 +20,11 @@ class Led:
 
     def off(self) -> None:
         self._set(False)
+    
+    def isOn(self) -> None:
+        if self._state == False:
+            return False
+        return True
 
     def _set(self, on: bool) -> None:
         self._state = on

@@ -25,8 +25,7 @@ class Buzzer:
     def isOn(self):
         if self._state == False:
             return False
-        else:
-            return True
+        return True
         
     def beep(self, seconds: float = 0.2) -> None:
         time.sleep(max(0.0, float(seconds)))
