@@ -8,14 +8,12 @@ from helper import GPIO
 from sensors import run_button_loop, run_pir_loop, run_ultrasonic_loop
 from settings import load_settings
 
+from telemetry import TelemetryEvent, now_ts
+from mqtt_publisher import MqttBatchPublisher
 
-def ts() -> str:
+
+def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
-
-
-def event(label: str, payload: str) -> None:
-    # Keep sensor output compact (threads will print anytime)
-    print(f"\n[{ts()}] {label}: {payload}")
 
 
 def print_menu() -> None:
@@ -28,36 +26,61 @@ def print_menu() -> None:
 
 
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("settings.json")
+    cfg: Dict[str, Any] = load_settings("settings.json")  # :contentReference[oaicite:9]{index=9}
+
+    device_cfg = cfg.get("device", {})
+    pi_id = str(device_cfg.get("pi_id", "PI1"))
+    device_name = str(device_cfg.get("device_name", "Device"))
+    default_simulated = bool(device_cfg.get("default_simulated", True))
+
+    mqtt_cfg = cfg.get("mqtt", {"enabled": False})
+    publisher = MqttBatchPublisher(mqtt_cfg)
+    publisher.start()
 
     stop_event = threading.Event()
     threads: list[threading.Thread] = []
 
     # --- Actuators ---
-    led_cfg = cfg.get("DL", {"simulated": True, "pin": 21, "active_high": True})
-    buz_cfg = cfg.get("DB", {"simulated": True, "pin": 22, "active_high": True})
+    led_cfg = cfg.get("DL", {"simulated": default_simulated, "pin": 21, "active_high": True})
+    buz_cfg = cfg.get("DB", {"simulated": default_simulated, "pin": 22, "active_high": True})
 
     led = Led(
-        simulated=bool(led_cfg.get("simulated", True)),
+        simulated=bool(led_cfg.get("simulated", default_simulated)),
         pin=int(led_cfg.get("pin", 21)),
         active_high=bool(led_cfg.get("active_high", True)),
     )
     buzzer = Buzzer(
-        simulated=bool(buz_cfg.get("simulated", True)),
+        simulated=bool(buz_cfg.get("simulated", default_simulated)),
         pin=int(buz_cfg.get("pin", 22)),
         active_high=bool(buz_cfg.get("active_high", True)),
     )
 
+    # helper to publish + print
+    def emit(kind: str, code: str, value, unit: str | None, simulated: bool) -> None:
+        ev = TelemetryEvent(
+            device=pi_id,
+            device_name=device_name,
+            kind=kind,
+            code=code,
+            value=value,
+            unit=unit,
+            simulated=simulated,
+            ts=now_ts(),
+        )
+        publisher.enqueue(ev)
+        # keep console output (KT1 behavior)
+        print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
+
     # --- Sensor loops (threads) ---
-    ds_cfg = cfg.get("DS1", {"delay_sec": 1.5})
-    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5})
-    dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0})
+    ds_cfg = cfg.get("DS1", {"delay_sec": 1.5, "simulated": default_simulated})
+    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": default_simulated})
+    dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0, "simulated": default_simulated})
 
     t = threading.Thread(
         target=run_button_loop,
         args=(
             float(ds_cfg.get("delay_sec", 1.5)),
-            lambda pressed: event("DS1(Button)", f"pressed={pressed}"),
+            lambda pressed: emit("sensor", "DS1", bool(pressed), None, bool(ds_cfg.get("simulated", default_simulated))),
             stop_event,
         ),
         daemon=True,
@@ -69,7 +92,7 @@ def main() -> None:
         target=run_pir_loop,
         args=(
             float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda motion: event("DPIR1(PIR)", f"motion={motion}"),
+            lambda motion: emit("sensor", "DPIR1", bool(motion), None, bool(dpir_cfg.get("simulated", default_simulated))),
             stop_event,
         ),
         daemon=True,
@@ -81,7 +104,7 @@ def main() -> None:
         target=run_ultrasonic_loop,
         args=(
             float(dus_cfg.get("delay_sec", 2.0)),
-            lambda d: event("DUS1(Ultrasonic)", f"distance_cm={d}"),
+            lambda d: emit("sensor", "DUS1", float(d), "cm", bool(dus_cfg.get("simulated", default_simulated))),
             stop_event,
         ),
         daemon=True,
@@ -89,7 +112,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # --- CLI (simple menu) ---
+    # --- CLI ---
     print_menu()
 
     try:
@@ -102,7 +125,6 @@ def main() -> None:
             if not raw:
                 continue
 
-            # allow: "4" or "4 1.5"
             parts = raw.split()
             choice = parts[0]
 
@@ -114,17 +136,21 @@ def main() -> None:
             elif choice == "2":
                 if led.isOn():
                     led.off()
+                    emit("actuator", "DL", False, None, bool(led_cfg.get("simulated", default_simulated)))
                     print("[DL] OFF")
                 else:
                     led.on()
+                    emit("actuator", "DL", True, None, bool(led_cfg.get("simulated", default_simulated)))
                     print("[DL] ON")
 
             elif choice == "3":
                 if buzzer.isOn():
                     buzzer.off()
+                    emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] OFF")
                 else:
                     buzzer.on()
+                    emit("actuator", "DB", True, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] ON")
 
             elif choice == "4":
@@ -139,6 +165,7 @@ def main() -> None:
                     print("[DB] Buzzer is OFF. Turn it ON first (option 3).")
                 else:
                     buzzer.beep(seconds)
+                    emit("actuator", "DB_BEEP", seconds, "sec", bool(buz_cfg.get("simulated", default_simulated)))
                     print(f"[DB] BEEP {seconds:.2f}s")
 
             elif choice == "0":
@@ -147,16 +174,16 @@ def main() -> None:
 
             else:
                 print("Invalid option.")
-                # don’t spam menu constantly, but helpful after mistakes:
                 print_menu()
 
-            time.sleep(0.1)
+            time.sleep(0.05)
 
     finally:
         stop_event.set()
         time.sleep(0.1)
 
-        # Cleanup
+        publisher.stop()
+
         try:
             led.cleanup()
         except Exception:
