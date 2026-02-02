@@ -5,13 +5,13 @@ from typing import Dict, Any
 from actuators.button import Button
 from actuators.buzzer import Buzzer
 from actuators.led import Led
-from helper import GPIO
+from device.helper import GPIO
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from settings import load_settings
+from device.settings import load_settings
 
-from telemetry import TelemetryEvent, now_ts
-from mqtt_publisher import MqttBatchPublisher
+from device.telemetry import TelemetryEvent, now_ts
+from device.mqtt.mqtt_publisher import MqttBatchPublisher
 
 
 def ts_str() -> str:
