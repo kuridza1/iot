@@ -48,10 +48,12 @@ class InfluxWriter:
         # Influx fields must be scalar
         if isinstance(value, bool):
             p = p.field("value_bool", value)
+            p = p.field("value_num", 1.0 if value else 0.0)
         elif isinstance(value, (int, float)):
             p = p.field("value_num", float(value))
         else:
             p = p.field("value_str", str(value))
+
 
         # timestamp in seconds → convert to ns precision
         p = p.time(int(ts * 1_000_000_000), WritePrecision.NS)

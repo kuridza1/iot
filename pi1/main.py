@@ -2,10 +2,12 @@ import threading
 import time
 from typing import Dict, Any
 
+from actuators.button import Button
 from actuators.buzzer import Buzzer
 from actuators.led import Led
 from helper import GPIO
-from sensors import run_button_loop, run_pir_loop, run_ultrasonic_loop
+from sensors.ultrasonic import run_ultrasonic_loop
+from sensors.pir import run_pir_loop
 from settings import load_settings
 
 from telemetry import TelemetryEvent, now_ts
@@ -22,11 +24,12 @@ def print_menu() -> None:
     print("2) Toggle Door Light (DL)")
     print("3) Toggle Buzzer (DB)")
     print("4) Beep (DB)  -> optional seconds")
+    print("5) Toggle Door Button (DS1)")
     print("0) Exit")
 
 
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("settings.json")  # :contentReference[oaicite:9]{index=9}
+    cfg: Dict[str, Any] = load_settings("settings.json") 
 
     device_cfg = cfg.get("device", {})
     pi_id = str(device_cfg.get("pi_id", "PI1"))
@@ -43,16 +46,23 @@ def main() -> None:
     # --- Actuators ---
     led_cfg = cfg.get("DL", {"simulated": default_simulated, "pin": 21, "active_high": True})
     buz_cfg = cfg.get("DB", {"simulated": default_simulated, "pin": 22, "active_high": True})
-
+    btn_cfg = cfg.get("DS1", {"simulated": default_simulated, "pin": 23, "active_high": True})
     led = Led(
         simulated=bool(led_cfg.get("simulated", default_simulated)),
         pin=int(led_cfg.get("pin", 21)),
         active_high=bool(led_cfg.get("active_high", True)),
     )
+
     buzzer = Buzzer(
         simulated=bool(buz_cfg.get("simulated", default_simulated)),
         pin=int(buz_cfg.get("pin", 22)),
         active_high=bool(buz_cfg.get("active_high", True)),
+    )
+
+    button = Button(
+        simulated=bool(btn_cfg.get("simulated", default_simulated)),
+        pin=int(btn_cfg.get("pin", 23)),
+        active_high=bool(btn_cfg.get("active_high", True)),
     )
 
     # helper to publish + print
@@ -68,25 +78,11 @@ def main() -> None:
             ts=now_ts(),
         )
         publisher.enqueue(ev)
-        # keep console output (KT1 behavior)
         print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
     # --- Sensor loops (threads) ---
-    ds_cfg = cfg.get("DS1", {"delay_sec": 1.5, "simulated": default_simulated})
     dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": default_simulated})
     dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0, "simulated": default_simulated})
-
-    t = threading.Thread(
-        target=run_button_loop,
-        args=(
-            float(ds_cfg.get("delay_sec", 1.5)),
-            lambda pressed: emit("sensor", "DS1", bool(pressed), None, bool(ds_cfg.get("simulated", default_simulated))),
-            stop_event,
-        ),
-        daemon=True,
-    )
-    t.start()
-    threads.append(t)
 
     t = threading.Thread(
         target=run_pir_loop,
@@ -132,6 +128,7 @@ def main() -> None:
                 print("\n--- STATUS ---")
                 print(f"DL (Door Light): {'ON' if led.isOn() else 'OFF'}")
                 print(f"DB (Buzzer):     {'ON' if buzzer.isOn() else 'OFF'}")
+                print(f"DS1 (Door Button):     {'ON' if button.isOn() else 'OFF'}")
 
             elif choice == "2":
                 if led.isOn():
@@ -146,14 +143,24 @@ def main() -> None:
             elif choice == "3":
                 if buzzer.isOn():
                     buzzer.off()
-                    emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "DS1", False, None, bool(buz_cfg.get("simulated", default_simulated)))
+                    print("[DS1] OFF")
+                else:
+                    buzzer.on()
+                    emit("actuator", "DS1", True, None, bool(buz_cfg.get("simulated", default_simulated)))
+                    print("[DS1] ON")
+
+            elif choice == "4":
+                if buzzer.isOn():
+                    buzzer.off()
+                    emit("actuator", "DBZ", False, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] OFF")
                 else:
                     buzzer.on()
                     emit("actuator", "DB", True, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] ON")
-
-            elif choice == "4":
+        
+            elif choice == "5":
                 seconds = 1.0
                 if len(parts) >= 2:
                     try:

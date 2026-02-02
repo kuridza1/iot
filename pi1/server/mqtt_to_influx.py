@@ -54,5 +54,4 @@ class MqttToInfluxService:
             if isinstance(payload, dict):
                 self._influx.write_event(payload)
         except Exception:
-            # ignore malformed payloads
             pass
