@@ -141,19 +141,19 @@ def main() -> None:
                     print("[DL] ON")
 
             elif choice == "3":
-                if buzzer.isOn():
-                    buzzer.off()
+                if button.isOn():
+                    button.off()
                     emit("actuator", "DS1", False, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DS1] OFF")
                 else:
-                    buzzer.on()
+                    button.on()
                     emit("actuator", "DS1", True, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DS1] ON")
 
             elif choice == "4":
                 if buzzer.isOn():
                     buzzer.off()
-                    emit("actuator", "DBZ", False, None, bool(buz_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] OFF")
                 else:
                     buzzer.on()
@@ -173,7 +173,7 @@ def main() -> None:
                 else:
                     buzzer.beep(seconds)
                     emit("actuator", "DB_BEEP", seconds, "sec", bool(buz_cfg.get("simulated", default_simulated)))
-                    print(f"[DB] BEEP {seconds:.2f}s")
+                    print(f"[DB_BEEP] {seconds:.2f}s")
 
             elif choice == "0":
                 print("Exiting...")
