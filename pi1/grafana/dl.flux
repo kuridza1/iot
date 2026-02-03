@@ -1,0 +1,7 @@
+from(bucket: "iot")
+  |> range(start: -15m)
+  |> filter(fn: (r) => r._measurement == "telemetry")
+  |> filter(fn: (r) => r.code == "DL")
+  |> filter(fn: (r) => r._field == "value_bool")
+  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)
+  |> yield(name: "last")

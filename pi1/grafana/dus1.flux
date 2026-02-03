@@ -1,0 +1,7 @@
+from(bucket: "iot")
+  |> range(start: -15m)
+  |> filter(fn: (r) => r._measurement == "telemetry")
+  |> filter(fn: (r) => r.code == "DUS1")
+  |> filter(fn: (r) => r._field == "value_num")
+  |> aggregateWindow(every: 10s, fn: mean, createEmpty: false)
+  |> yield(name: "mean")

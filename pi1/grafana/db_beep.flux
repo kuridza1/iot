@@ -1,0 +1,7 @@
+from(bucket: "iot")
+  |> range(start: -15m)
+  |> filter(fn: (r) => r._measurement == "telemetry")
+  |> filter(fn: (r) => r.code == "DB_BEEP")
+  |> filter(fn: (r) => r._field == "value_num")
+  |> aggregateWindow(every: 30s, fn: max, createEmpty: false)
+  |> yield(name: "max")
