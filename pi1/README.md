@@ -16,7 +16,8 @@ Na Raspberry Pi:
 
 ## 2) Kreiranje InfluxDB tokena (jednom)
 
-1. Pokreni InfluxDB:
+1. Pokreni InfluxDB: 
+   cd /infra
    docker compose up -d influxdb
 2. Otvori Influx UI:
    http://localhost:8086
@@ -32,7 +33,7 @@ Na Raspberry Pi:
 
 ## 3) Podešavanje .env fajlova
 
-### infra/.env
+### server/.env
 
 INFLUX_URL=http://influxdb:8086  
 INFLUX_ORG=org  

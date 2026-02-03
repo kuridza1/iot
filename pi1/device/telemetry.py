@@ -21,7 +21,6 @@ class TelemetryEvent:
         return asdict(self)
 
     def default_topic(self, topic_prefix: str) -> str:
-        # Example: iot/smart-house/PI1/sensor/DUS1
         return f"{topic_prefix}/{self.device}/{self.kind}/{self.code}"
 
 

@@ -10,10 +10,12 @@ class InfluxWriter:
     """@brief Writes TelemetryEvent JSON payloads into InfluxDB."""
 
     def __init__(self, url: str, token: str, org: str, bucket: str) -> None:
+        print(url, token, org, bucket)
         self._client = InfluxDBClient(url=url, token=token, org=org)
         self._write_api = self._client.write_api(write_options=SYNCHRONOUS)
         self._org = org
         self._bucket = bucket
+        
 
     def close(self) -> None:
         try:
