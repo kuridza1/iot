@@ -1,16 +1,28 @@
 # PI1 Smart Door — Run Instructions
 
-## 1) Priprema okruženja
+## 1) Pokretanje na Raspberry Pi
 
-Na server računaru:
-- Docker + Docker Compose
-- Python 3.10+
-- pip
+ssh korisnik@hostname (hostname ce nam dati)
 
-Na Raspberry Pi:
-- Raspberry Pi OS
-- Python 3 + pip
-- mrežna konekcija ka server računaru
+mkdir -p ~/tojest
+
+exit
+
+scp -r ./iot(ili pi1)/* korisnik@hostname:/home/korisnik/tojest/
+
+ssh korisnik@hostname
+
+cd ~/tojest
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+python3 device/main.py
+
+// za izlazak
+sudo shutdown -h now
+
 
 ---
 
