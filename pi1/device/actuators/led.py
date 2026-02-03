@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from device.helper import GPIO
+from helper import GPIO
 
 
 @dataclass

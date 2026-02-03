@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, List
 
 import paho.mqtt.client as mqtt
 
-from device.telemetry import TelemetryEvent
+from telemetry import TelemetryEvent
 
 
 class MqttBatchPublisher:

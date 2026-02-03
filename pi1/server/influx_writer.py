@@ -25,8 +25,8 @@ class InfluxWriter:
         # payload is TelemetryEvent.to_payload()
         device = str(payload.get("device", "unknown"))
         device_name = str(payload.get("device_name", "unknown"))
-        kind = str(payload.get("kind", "unknown"))          # sensor/actuator
-        code = str(payload.get("code", "unknown"))          # DUS1/DS1/DL...
+        kind = str(payload.get("kind", "unknown"))         
+        code = str(payload.get("code", "unknown"))         
         simulated = bool(payload.get("simulated", True))
         unit = payload.get("unit", None)
         ts = float(payload.get("ts", 0.0))

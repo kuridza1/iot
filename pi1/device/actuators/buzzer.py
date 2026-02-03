@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import time
 
-from device.helper import GPIO
+from helper import GPIO
 
 
 @dataclass
