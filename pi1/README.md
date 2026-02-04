@@ -28,6 +28,8 @@ sudo shutdown -h now
 
 ## 2) Kreiranje InfluxDB tokena (jednom)
 
+
+
 1. Pokreni InfluxDB: 
    cd /infra
    docker compose up -d influxdb
@@ -47,7 +49,7 @@ sudo shutdown -h now
 
 ### server/.env
 
-INFLUX_URL=http://influxdb:8086  
+INFLUX_URL=http://localhost:8086  
 INFLUX_ORG=org  
 INFLUX_BUCKET=iot  
 INFLUX_TOKEN=PASTE_TOKEN_HERE  
@@ -56,25 +58,36 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin  
 GRAFANA_PORT=3000  
 
-MQTT_BROKER=mosquitto  
+MQTT_BROKER=localhost  
 MQTT_PORT=1883  
 MQTT_TOPIC_FILTER=iot/smart-house/#  
 
-INFLUX_URL=http://localhost:8086  
+
+### infra/.env
+
+INFLUX_URL=http://influxdb:8086  
 INFLUX_ORG=org  
 INFLUX_BUCKET=iot  
 INFLUX_TOKEN=PASTE_TOKEN_HERE  
 
-MQTT_BROKER=localhost  
+MQTT_BROKER=mosquitto  
 MQTT_PORT=1883  
 MQTT_TOPIC_FILTER=iot/smart-house/#  
+
+GRAFANA_ADMIN_USER=admin  
+GRAFANA_ADMIN_PASSWORD=admin  
+GRAFANA_PORT=3000 
 ---
 
 
 ## 4) Pokretanje infrastrukture (InfluxDB + Grafana + MQTT)
 
 cd infra  
-docker compose up -d  
+
+docker compose up -d --build
+
+docker compose run --rm -it device
+
 docker ps  
 
 ---
@@ -93,23 +106,14 @@ docker compose restart grafana
 
 ## 6) Pokretanje server aplikacije
 
+// ako ne radi preko dokera
 cd server  
 python app.py  
 
 ---
 
 ## 7) Pokretanje device aplikacije (Raspberry Pi)
-
-1. SSH:
-   ssh pi@<PI_IP>
-2. Install:
-   cd device  
-3. Proveri settings.json:
-   - mqtt.host = IP adresa servera
-   - mqtt.port = 1883
-4. Start:
-   python main.py
-
+/
 ---
 
 ## 8) Tipičan redosled pokretanja

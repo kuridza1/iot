@@ -26,10 +26,38 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto
-    env_file:
-      - .env
     ports:
       - "1883:1883"
+
+  server:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - influxdb
+      - mosquitto
+    environment:
+      - INFLUX_URL=http://influxdb:8086
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    command: ["python", "server/app.py"]
+    restart: unless-stopped
+
+  device:
+    working_dir: /app/device
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - mosquitto
+    stdin_open: true
+    tty: true
+    command: ["python", "main.py"]
+
 
 volumes:
   influx-data:

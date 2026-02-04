@@ -7,7 +7,7 @@
   },
   "mqtt": {
     "enabled": true,
-    "broker": "localhost",
+    "broker": "mosquitto",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi1-smartdoor",
