@@ -8,7 +8,7 @@ from .actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from .sensors.ultrasonic import run_ultrasonic_loop
 from .sensors.pir import run_pir_loop
-from ..settings import load_settings
+from .settings import load_settings
 
 from telemetry import *
 from helper import GPIO
