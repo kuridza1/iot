@@ -1,12 +1,26 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { PANES, PiId } from './model/smart-house.model';
+import { FloorplanComponent } from './floorplan/floorplan.component';
+import { GrafanaEmbedComponent } from './grafana-embed/grafana-embed.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent],
 })
 export class App {
-  protected readonly title = signal('frontend');
+  selectedPi: PiId | null = null;
+  selectedElement: string | null = null;
+
+  get grafanaUrl(): string | null {
+    if (!this.selectedPi) return null;
+    const pane = PANES.find(p => p.id === this.selectedPi);
+    if (!pane) return null;
+
+    const url = new URL(pane.grafana.dashboardUrl);
+    Object.entries(pane.grafana.params ?? {}).forEach(([k, v]) => url.searchParams.set(k, v));
+    return url.toString();
+  }
 }

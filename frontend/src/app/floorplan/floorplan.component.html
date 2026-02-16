@@ -1,0 +1,36 @@
+<div class="plan">
+  <img class="plan-img" src="house-plan.png" alt="House plan" />
+
+  <svg class="overlay" viewBox="0 0 1000 800" preserveAspectRatio="none">
+    <g *ngFor="let pane of panes">
+      <path
+        class="pane"
+        [attr.d]="pane.pathD"
+        [style.--pane-color]="pane.color"
+        [class.selected]="selectedPi === pane.id"
+        (click)="selectPi($event, pane.id)"
+      ></path>
+
+      <text
+        class="pane-label"
+        [attr.x]="pane.labelPos.x"
+        [attr.y]="pane.labelPos.y"
+        [class.selected]="selectedPi === pane.id"
+      >
+        {{ pane.label }}
+      </text>
+    </g>
+  </svg>
+
+  <button
+    *ngFor="let e of selectedElements"
+    class="hotspot el"
+    [style.left.%]="e.xPct"
+    [style.top.%]="e.yPct"
+    (click)="selectElement($event, e.id)"
+    [class.selected]="selectedElement === e.id"
+    [attr.title]="e.label"
+  >
+    {{ e.id }}
+  </button>
+</div>
