@@ -2,17 +2,16 @@ import threading
 import time
 from typing import Dict, Any
 
-from actuators.button import Button
-from actuators.buzzer import Buzzer
-from actuators.led import Led
-from helper import GPIO
-from sensors.ultrasonic import run_ultrasonic_loop
-from sensors.pir import run_pir_loop
-from settings import load_settings
-
-from telemetry import TelemetryEvent, now_ts
+from .actuators.button import Button
+from .actuators.buzzer import Buzzer
+from .actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
+from .sensors.ultrasonic import run_ultrasonic_loop
+from .sensors.pir import run_pir_loop
+from .settings import load_settings
 
+from telemetry import *
+from helper import GPIO
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
@@ -29,7 +28,7 @@ def print_menu() -> None:
 
 
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("settings.json") 
+    cfg: Dict[str, Any] = load_settings("pi1/settings.json") 
 
     device_cfg = cfg.get("device", {})
     pi_id = str(device_cfg.get("pi_id", "PI1"))
