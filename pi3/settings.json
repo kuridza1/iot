@@ -1,7 +1,7 @@
 {
   "SERVER": {
   "enabled": true,
-  "base_url": "http://0.0.0.0:5000",
+  "base_url": "http://localhost:5000",
   "dht3_device": "PI2"
   },
   "device": {

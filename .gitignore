@@ -2,3 +2,7 @@
 .env
 .env.*
 !*.example
+helper/__pycache__/*
+pi1/__pycache__/*
+pi2/__pycache__/*
+pi3/__pycache__/*

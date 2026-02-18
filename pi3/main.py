@@ -2,7 +2,7 @@ import threading
 import time
 from typing import Dict, Any, Optional
 
-from helper import GPIO
+from helper.helper import GPIO
 from helper.settings import load_settings
 
 from helper.telemetry import TelemetryEvent, now_ts
