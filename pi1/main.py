@@ -79,33 +79,58 @@ def main() -> None:
         publisher.enqueue(ev)
         print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
-    # --- Sensor loops (threads) ---
-    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": default_simulated})
-    dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0, "simulated": default_simulated})
+    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
+
+    dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
+    dpir_pin = int(dpir_cfg.get("pin", 17))
+    dpir_pull = str(dpir_cfg.get("pull", "down"))
+    dpir_active_high = bool(dpir_cfg.get("active_high", True))
 
     t = threading.Thread(
         target=run_pir_loop,
         args=(
             float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda motion: emit("sensor", "DPIR1", bool(motion), None, bool(dpir_cfg.get("simulated", default_simulated))),
+            lambda motion: emit("sensor", "DPIR1", bool(motion), None, dpir_sim),
             stop_event,
+            dpir_sim,
+            dpir_pin,
+            dpir_pull,
+            dpir_active_high,
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
 
+    dus_cfg = cfg.get(
+    "DUS1",
+    {
+        "delay_sec": 2.0,
+        "simulated": default_simulated,
+        "trig_pin": 5,
+        "echo_pin": 6,
+        },
+    )
+
+    dus_sim = bool(dus_cfg.get("simulated", default_simulated))
+    dus_trig = int(dus_cfg.get("trig_pin", 5))
+    dus_echo = int(dus_cfg.get("echo_pin", 6))
+
     t = threading.Thread(
         target=run_ultrasonic_loop,
         args=(
             float(dus_cfg.get("delay_sec", 2.0)),
-            lambda d: emit("sensor", "DUS1", float(d), "cm", bool(dus_cfg.get("simulated", default_simulated))),
+            lambda d: emit("sensor", "DUS1", float(d), "cm", dus_sim),
             stop_event,
+            dus_sim,
+            dus_trig,
+            dus_echo,
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
+
 
     # --- CLI ---
     print_menu()

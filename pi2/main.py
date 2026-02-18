@@ -1,8 +1,6 @@
-# pi2/main.py
 import threading
 import time
-import random
-from typing import Dict, Any, Callable, Optional, Tuple
+from typing import Dict, Any, Optional
 
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from telemetry import TelemetryEvent, now_ts
@@ -10,11 +8,14 @@ from helper import GPIO
 
 from actuators.button import Button
 from actuators.four_digit_timer import FourDigitTimer
+
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from settings import load_settings
 from sensors.gyro import run_gyro_loop
 from sensors.timer import run_timer_loop
+from sensors.dht import run_dht_loop
+
+from settings import load_settings
 
 
 def ts_str() -> str:
@@ -59,8 +60,8 @@ def main() -> None:
             ts=now_ts(),
         )
         publisher.enqueue(ev)
-        print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
-
+        if kind == "actuator":
+                print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
     ds2_cfg = cfg.get("DS2", {"simulated": default_simulated, "pin": 23, "active_high": True})
     btn_cfg = cfg.get("BTN", {"simulated": default_simulated, "pin": 24, "active_high": True})
@@ -80,49 +81,72 @@ def main() -> None:
 
     timer = FourDigitTimer(simulated=bool(timer_cfg.get("simulated", default_simulated)))
 
+    dpir_cfg = cfg.get("DPIR2", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
 
-    dpir_cfg = cfg.get("DPIR2", {"delay_sec": 1.5, "simulated": default_simulated})
-    dus_cfg = cfg.get("DUS2", {"delay_sec": 2.0, "simulated": default_simulated})
-    gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated})
+    dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
+    dpir_pin = int(dpir_cfg.get("pin", 17))
+    dpir_pull = str(dpir_cfg.get("pull", "down"))
+    dpir_active_high = bool(dpir_cfg.get("active_high", True))
 
     t = threading.Thread(
         target=run_pir_loop,
         args=(
             float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda motion: emit("sensor", "DPIR2", bool(motion), None, bool(dpir_cfg.get("simulated", default_simulated))),
+            lambda motion: emit("sensor", "DPIR2", bool(motion), None, dpir_sim),
             stop_event,
+            dpir_sim,
+            dpir_pin,
+            dpir_pull,
+            dpir_active_high,
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
+
+    dus_cfg = cfg.get(
+    "DUS2",
+    {
+        "delay_sec": 2.0,
+        "simulated": default_simulated,
+        "trig_pin": 5,
+        "echo_pin": 6,
+        },
+    )
+
+    dus_sim = bool(dus_cfg.get("simulated", default_simulated))
+    dus_trig = int(dus_cfg.get("trig_pin", 5))
+    dus_echo = int(dus_cfg.get("echo_pin", 6))
 
     t = threading.Thread(
         target=run_ultrasonic_loop,
         args=(
             float(dus_cfg.get("delay_sec", 2.0)),
-            lambda d: emit("sensor", "DUS2", float(d), "cm", bool(dus_cfg.get("simulated", default_simulated))),
+            lambda d: emit("sensor", "DUS2", float(d), "cm", dus_sim),
             stop_event,
+            dus_sim,
+            dus_trig,
+            dus_echo,
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
 
-# --- GSG thread (adds movement_cb) ---
+    gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated})
+    dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
+
+    # --- GSG thread (movement_cb + xyz) ---
     t = threading.Thread(
         target=run_gyro_loop,
         args=(
             float(gsg_cfg.get("delay_sec", 0.5)),
-            # callback_xyz
             lambda xyz: (
                 emit("sensor", "GSG_X", xyz[0], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
                 emit("sensor", "GSG_Y", xyz[1], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
                 emit("sensor", "GSG_Z", xyz[2], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
             ),
-            # movement_cb (NEW)
-            lambda mag: emit("sensor", "GSG_MOVEMENT", mag, "mag", bool(gsg_cfg.get("simulated", default_simulated))),
-            # stop_event
+            lambda mag: emit("sensor", "GSG_MOVEMENT", float(mag), "mag", bool(gsg_cfg.get("simulated", default_simulated))),
             stop_event,
         ),
         daemon=True,
@@ -130,8 +154,25 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # --- DHT3 loop: emits TEMP + HUM ---
+    t = threading.Thread(
+        target=run_dht_loop,
+        args=(
+            float(dht3_cfg.get("delay_sec", 3.0)),
+            float(dht3_cfg.get("temp_c_start", 22.0)),
+            float(dht3_cfg.get("hum_pct_start", 45.0)),
+            lambda temp_c, hum_pct: (
+                emit("sensor", "DHT3_TEMP", float(temp_c), "C", bool(dht3_cfg.get("simulated", default_simulated))),
+                emit("sensor", "DHT3_HUM", float(hum_pct), "%", bool(dht3_cfg.get("simulated", default_simulated))),
+            ),
+            stop_event,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
 
-    # --- 4SD timer thread (adds finished_cb) ---
+    # --- 4SD timer thread (finished_cb) ---
     t = threading.Thread(
         target=run_timer_loop,
         args=(
@@ -145,8 +186,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-
-
+    # --- CLI ---
     print_menu()
 
     try:
@@ -168,6 +208,7 @@ def main() -> None:
                 print(f"DS2 (Door sensor):      {'ON' if ds2.isOn() else 'OFF'}")
                 print(f"BTN (Kitchen button):   {'ON' if btn.isOn() else 'OFF'}")
                 print(f"4SD (Timer):            {'RUN' if running else 'STOP'}  {timer.render()}  ({left}s)")
+                print("DHT3: publishing TEMP/HUM events")
 
             elif choice == "2":
                 if ds2.isOn():
@@ -225,7 +266,6 @@ def main() -> None:
     finally:
         stop_event.set()
         time.sleep(0.1)
-
         publisher.stop()
 
         try:

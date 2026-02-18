@@ -39,6 +39,12 @@
     "delay_sec": 1.5,
     "simulated": true
   },
+  "DHT3": { 
+    "delay_sec": 3.0, 
+    "simulated": true, 
+    "temp_c_start": 22.0, 
+    "hum_pct_start": 45.0 
+  },
 
   "GSG": {
     "delay_sec": 0.5,

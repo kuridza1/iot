@@ -74,8 +74,28 @@ def main() -> None:
 
     lcd = Lcd(simulated=bool(lcd_cfg.get("simulated", default_simulated)))
 
-    # --- Sensor loops (threads) ---
-    dpir_cfg = cfg.get("DPIR3", {"delay_sec": 1.5, "simulated": default_simulated})
+    dpir_cfg = cfg.get("DPIR3", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
+
+    dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
+    dpir_pin = int(dpir_cfg.get("pin", 17))
+    dpir_pull = str(dpir_cfg.get("pull", "down"))
+    dpir_active_high = bool(dpir_cfg.get("active_high", True))
+
+    t = threading.Thread(
+        target=run_pir_loop,
+        args=(
+            float(dpir_cfg.get("delay_sec", 1.5)),
+            lambda motion: emit("sensor", "DPIR3", bool(motion), None, dpir_sim),
+            stop_event,
+            dpir_sim,
+            dpir_pin,
+            dpir_pull,
+            dpir_active_high,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
     dht1_cfg = cfg.get("DHT1", {"delay_sec": 3.0, "simulated": default_simulated})
     dht2_cfg = cfg.get("DHT2", {"delay_sec": 3.0, "simulated": default_simulated})
     ir_cfg = cfg.get("IR", {"delay_sec": 0.25, "simulated": default_simulated})
@@ -92,7 +112,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # DHT1 loop: emits 2 events per tick (temp + hum)
     t = threading.Thread(
         target=run_dht_loop,
         args=(
