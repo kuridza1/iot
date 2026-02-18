@@ -26,12 +26,10 @@
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje trajanje beep komandi.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "#5297d2",
-            "mode": "shades"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisBorderShow": false,
@@ -39,23 +37,51 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "fillOpacity": 90,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 29,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 0,
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
-          "fieldMinMax": false,
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "super-light-green",
+                  "index": 0,
+                  "text": "off"
+                },
+                "1": {
+                  "color": "dark-red",
+                  "index": 1,
+                  "text": "on"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -68,8 +94,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "s"
+          }
         },
         "overrides": []
       },
@@ -79,43 +104,29 @@
         "x": 0,
         "y": 0
       },
-      "id": 6,
+      "id": 8,
       "options": {
-        "barRadius": 0.15,
-        "barWidth": 0.9,
-        "colorByField": "Time",
-        "fullHighlight": false,
-        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
+          "displayMode": "hidden",
+          "placement": "right",
           "showLegend": false
         },
-        "orientation": "vertical",
-        "showValue": "always",
-        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 200
+        }
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DB_BEEP\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -7d)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI1\" and\r\n    r.code == \"ALARM\" and\r\n    r._field == \"value_num\"\r\n  )\r\n",
           "refId": "A"
         }
       ],
-      "title": "buzzer beep",
-      "type": "barchart"
+      "title": "New panel",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -196,10 +207,10 @@
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 100
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DUS1\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n  |> yield(name: \"mean\")\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -5m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DUS1\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n  |> yield(name: \"mean\")\r\n",
           "refId": "A"
         }
       ],
@@ -211,23 +222,10 @@
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje da li je buzzer uključen ili isključen.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
-          },
-          "custom": {
-            "axisPlacement": "hidden",
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -242,8 +240,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "bool_on_off"
+          }
         },
         "overrides": []
       },
@@ -253,36 +250,33 @@
         "x": 0,
         "y": 8
       },
-      "id": 5,
+      "id": 7,
       "options": {
-        "alignValue": "center",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "always",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DB\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -7d)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI1\" and\r\n    r.code == \"PEOPLE_INSIDE\" and\r\n    r._field == \"value_num\" and\r\n    r.unit == \"count\"\r\n  )\r\n  |> last()\r\n\r\n",
           "refId": "A"
         }
       ],
-      "title": "buzzer",
-      "type": "state-timeline"
+      "title": "New panel",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -349,7 +343,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
           "datasource": {
@@ -368,36 +362,50 @@
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje trenutke kada je dugme pritisnuto.",
+      "description": "Prikazuje trajanje beep komandi.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-YlBl"
+            "fixedColor": "#5297d2",
+            "mode": "shades"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "auto",
-            "axisWidth": 0,
-            "fillOpacity": 70,
+            "fillOpacity": 90,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
             "lineWidth": 0,
-            "spanNulls": false
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
+          "fieldMinMax": false,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "yellow",
+                "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
-          "unit": "bool_on_off"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -407,36 +415,43 @@
         "x": 0,
         "y": 16
       },
-      "id": 4,
+      "id": 6,
       "options": {
-        "alignValue": "center",
+        "barRadius": 0.15,
+        "barWidth": 0.9,
+        "colorByField": "Time",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
+        "orientation": "vertical",
         "showValue": "always",
+        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
-          "mode": "none",
+          "mode": "multi",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 200
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DS1\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DB_BEEP\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n",
           "refId": "A"
         }
       ],
-      "title": "door button",
-      "type": "state-timeline"
+      "title": "buzzer beep",
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -503,7 +518,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.3.2",
+      "pluginVersion": "12.3.3",
       "targets": [
         {
           "datasource": {
@@ -515,6 +530,159 @@
         }
       ],
       "title": "dpir1 - detekcija pokreta",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "description": "Prikazuje da li je buzzer uključen ili isključen.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisPlacement": "hidden",
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bool_on_off"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 5,
+      "options": {
+        "alignValue": "center",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "always",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DB\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n",
+          "refId": "A"
+        }
+      ],
+      "title": "buzzer",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "description": "Prikazuje trenutke kada je dugme pritisnuto.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-YlBl"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "axisWidth": 0,
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bool_on_off"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 4,
+      "options": {
+        "alignValue": "center",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "always",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "none",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DS1\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "refId": "A"
+        }
+      ],
+      "title": "door button",
       "type": "state-timeline"
     }
   ],
@@ -533,5 +701,5 @@
   "timezone": "browser",
   "title": "p1 device",
   "uid": "ffbvsb4945u68b",
-  "version": 1
+  "version": 4
 }

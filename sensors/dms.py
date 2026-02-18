@@ -3,6 +3,7 @@ import random
 import time
 from typing import Callable, List
 
+
 KEYMAP = [
     ["1", "2", "3", "A"],
     ["4", "5", "6", "B"],

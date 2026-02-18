@@ -42,19 +42,54 @@ def run_ultrasonic_loop(
     callback(distance_cm or None)
     """
 
-    # ---------- SIMULATED ----------
     if simulated:
+
+        THRESH = 50.0
+
+   
+        near_prob = 0.7      
+        near_hold = 6.0        
+        far_hold = 3.0         
+
+        mode = "far"
+        mode_until = time.time() + far_hold
         distance = 120.0
+
         while not stop_event.is_set():
-            if random.random() < 0.1:
-                distance = random.uniform(10.0, 40.0)
+            now = time.time()
+
+            # promena režima
+            if now >= mode_until:
+                if mode == "far":
+                    # povremeno neko "prilazi" (enter scenario)
+                    if random.random() < near_prob:
+                        mode = "near"
+                        mode_until = now + near_hold
+                        # skoči u near zonu
+                        distance = random.uniform(10.0, THRESH - 5.0)
+                    else:
+                        mode = "far"
+                        mode_until = now + far_hold
+                        distance = random.uniform(THRESH + 20.0, 140.0)
+                else:
+                    # iz near se vraćamo u far (exit scenario)
+                    mode = "far"
+                    mode_until = now + far_hold
+                    distance = random.uniform(THRESH + 20.0, 140.0)
+
+            # update distance (mali random-walk oko ciljnog opsega)
+            if mode == "near":
+                distance += random.uniform(-3.0, 3.0)
+                distance = min(THRESH - 2.0, max(5.0, distance))
             else:
                 distance += random.uniform(-8.0, 8.0)
-                distance = min(max_cm, max(5.0, distance))
+                distance = min(max_cm, max(THRESH + 5.0, distance))
 
             callback(round(distance, 1))
             time.sleep(delay)
+
         return
+
 
     # ---------- REAL SENSOR ----------
     try:

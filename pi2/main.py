@@ -4,14 +4,14 @@ from typing import Dict, Any, Optional
 
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from helper.telemetry import TelemetryEvent, now_ts
-from helper import GPIO
+from helper.helper import GPIO
 
 from actuators.button import Button
 from actuators.four_digit_timer import FourDigitTimer
 
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from sensors.gsg import run_gyro_loop
+from sensors.gsg import run_gsg_loop
 from sensors.timer import run_timer_loop
 from sensors.dht import run_dht_loop
 
@@ -139,7 +139,7 @@ def main() -> None:
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
 
     t = threading.Thread(
-        target=run_gyro_loop,
+        target=run_gsg_loop,
         args=(
             float(gsg_cfg.get("delay_sec", 0.5)),
             gsg_threshold,

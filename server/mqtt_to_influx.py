@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import threading
 from typing import Any, Dict, Optional, Callable
 
 import paho.mqtt.client as mqtt
@@ -10,7 +9,7 @@ from influx_writer import InfluxWriter
 
 
 class MqttToInfluxService:
-    """@brief Subscribes to MQTT topics and writes payloads into InfluxDB."""
+    """@brief Subscribes to MQTT topics and writes payloads into InfluxDB (optional on_event hook)."""
 
     def __init__(
         self,
@@ -19,12 +18,14 @@ class MqttToInfluxService:
         topic_filter: str,
         client_id: str,
         influx: InfluxWriter,
+        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self._broker = broker
         self._port = port
         self._topic_filter = topic_filter
         self._client_id = client_id
         self._influx = influx
+        self._on_event = on_event
 
         self._client = mqtt.Client(client_id=self._client_id, clean_session=True)
         self._client.on_connect = self._on_connect
@@ -53,5 +54,7 @@ class MqttToInfluxService:
             payload = json.loads(msg.payload.decode("utf-8"))
             if isinstance(payload, dict):
                 self._influx.write_event(payload)
+                if self._on_event is not None:
+                    self._on_event(payload)
         except Exception:
             pass
