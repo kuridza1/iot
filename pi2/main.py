@@ -2,13 +2,13 @@ import threading
 import time
 from typing import Dict, Any
 
-from .actuators.button import Button
-from .actuators.buzzer import Buzzer
-from .actuators.led import Led
+from actuators.button import Button
+from actuators.buzzer import Buzzer
+from actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
-from .sensors.ultrasonic import run_ultrasonic_loop
-from .sensors.pir import run_pir_loop
-from .settings import load_settings
+from sensors.ultrasonic import run_ultrasonic_loop
+from sensors.pir import run_pir_loop
+from settings import load_settings
 
 from telemetry import *
 from helper import GPIO
@@ -140,16 +140,7 @@ def main() -> None:
                     print("[DL] ON")
 
             elif choice == "3":
-                if button.isOn():
-                    button.off()
-                    emit("actuator", "DS1", False, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DS1] OFF")
-                else:
-                    button.on()
-                    emit("actuator", "DS1", True, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DS1] ON")
-
-            elif choice == "4":
+                # Toggle Buzzer (DB)
                 if buzzer.isOn():
                     buzzer.off()
                     emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", default_simulated)))
@@ -158,8 +149,9 @@ def main() -> None:
                     buzzer.on()
                     emit("actuator", "DB", True, None, bool(buz_cfg.get("simulated", default_simulated)))
                     print("[DB] ON")
-        
-            elif choice == "5":
+
+            elif choice == "4":
+                # Beep (DB)
                 seconds = 1.0
                 if len(parts) >= 2:
                     try:
@@ -167,12 +159,26 @@ def main() -> None:
                     except ValueError:
                         seconds = 1.0
 
-                if not buzzer.isOn():
-                    print("[DB] Buzzer is OFF. Turn it ON first (option 3).")
+                # Prefer beep to drive the pin itself (on->sleep->off). If your Buzzer.beep()
+                # is still just sleep, this won't be audible unless you update Buzzer.beep().
+                buzzer.on()
+                buzzer.beep(seconds)
+                buzzer.off()
+
+                emit("actuator", "DB_BEEP", seconds, "sec", bool(buz_cfg.get("simulated", default_simulated)))
+                print(f"[DB_BEEP] {seconds:.2f}s")
+
+            elif choice == "5":
+                # Toggle Door Button (DS1) actuator (if you model it as an output)
+                if button.isOn():
+                    button.off()
+                    emit("actuator", "DS1", False, None, bool(btn_cfg.get("simulated", default_simulated)))
+                    print("[DS1] OFF")
                 else:
-                    buzzer.beep(seconds)
-                    emit("actuator", "DB_BEEP", seconds, "sec", bool(buz_cfg.get("simulated", default_simulated)))
-                    print(f"[DB_BEEP] {seconds:.2f}s")
+                    button.on()
+                    emit("actuator", "DS1", True, None, bool(btn_cfg.get("simulated", default_simulated)))
+                    print("[DS1] ON")
+
 
             elif choice == "0":
                 print("Exiting...")
@@ -202,6 +208,11 @@ def main() -> None:
             GPIO.cleanup()
         except Exception:
             pass
+        try:
+            button.cleanup()
+        except Exception:
+            pass
+
 
 
 if __name__ == "__main__":

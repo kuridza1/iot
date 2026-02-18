@@ -2,90 +2,88 @@ from dataclasses import dataclass
 from helper import GPIO
 
 
-def clamp(v, lo, hi):
-    return max(lo, min(hi, int(v)))
-
-
 @dataclass
 class BRGB:
     """
-    @brief Bedroom RGB lamp with brightness control
-    Brightness: 0–100 (%)
-    RGB: 0–255
+    @brief Bedroom RGB lamp (digital ON/OFF per channel).
+
+    Each color channel is one GPIO pin:
+      - True  -> ON
+      - False -> OFF
     """
     simulated: bool
     pin_r: int
     pin_g: int
     pin_b: int
+    active_high: bool = True
 
     def __post_init__(self) -> None:
-        self._brightness = 0
-        self._r = 0
-        self._g = 0
-        self._b = 0
+        self._r = False
+        self._g = False
+        self._b = False
 
         if not self.simulated:
             GPIO.setup_out(self.pin_r)
             GPIO.setup_out(self.pin_g)
             GPIO.setup_out(self.pin_b)
 
-    # -------------------------
-    # Core control
-    # -------------------------
-
-    def set(self, brightness: int, r: int, g: int, b: int) -> None:
-        self._brightness = clamp(brightness, 0, 100)
-        self._r = clamp(r, 0, 255)
-        self._g = clamp(g, 0, 255)
-        self._b = clamp(b, 0, 255)
-
+        self.off()
+        
+    def _write(self, pin: int, state: bool) -> None:
         if self.simulated or not GPIO.available:
             return
 
-        # Scale RGB by brightness
-        scale = self._brightness / 100.0
+        value = state if self.active_high else (not state)
+        GPIO.output(pin, value)
 
-        r_val = int(self._r * scale)
-        g_val = int(self._g * scale)
-        b_val = int(self._b * scale)
+    def set(self, r: bool, g: bool, b: bool) -> None:
+        self._r = bool(r)
+        self._g = bool(g)
+        self._b = bool(b)
 
-        # Digital fallback (ON if > 0)
-        GPIO.output(self.pin_r, r_val > 0)
-        GPIO.output(self.pin_g, g_val > 0)
-        GPIO.output(self.pin_b, b_val > 0)
+        self._write(self.pin_r, self._r)
+        self._write(self.pin_g, self._g)
+        self._write(self.pin_b, self._b)
 
-    # -------------------------
-    # Convenience methods
-    # -------------------------
+    def set_color(self, r: bool, g: bool, b: bool) -> None:
+        self.set(r, g, b)
 
     def on(self) -> None:
-        if self._brightness == 0:
-            self._brightness = 100
-        self.set(self._brightness, self._r, self._g, self._b)
+        self.set(True, True, True)
 
     def off(self) -> None:
-        self.set(0, 0, 0, 0)
+        self.set(False, False, False)
 
-    def set_brightness(self, brightness: int) -> None:
-        self.set(brightness, self._r, self._g, self._b)
+    def red(self) -> None:
+        self.set(True, False, False)
 
-    def set_color(self, r: int, g: int, b: int) -> None:
-        self.set(self._brightness, r, g, b)
+    def green(self) -> None:
+        self.set(False, True, False)
 
-    # -------------------------
-    # State getters
-    # -------------------------
+    def blue(self) -> None:
+        self.set(False, False, True)
+
+    def yellow(self) -> None:
+        self.set(True, True, False)
+
+    def cyan(self) -> None:
+        self.set(False, True, True)
+
+    def magenta(self) -> None:
+        self.set(True, False, True)
+
+    def white(self) -> None:
+        self.set(True, True, True)
 
     def isOn(self) -> bool:
-        return self._brightness > 0 and (self._r or self._g or self._b)
+        return self._r or self._g or self._b
 
     def get(self):
         return {
-            "brightness": self._brightness,
             "r": self._r,
             "g": self._g,
             "b": self._b,
         }
 
     def cleanup(self) -> None:
-        pass
+        self.off()
