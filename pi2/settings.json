@@ -32,22 +32,31 @@
 
   "DUS2": {
     "delay_sec": 2.0,
-    "simulated": true
+    "simulated": true,
+    "trig_pin": 5,
+    "echo_pin": 6
   },
 
   "DPIR2": {
     "delay_sec": 1.5,
-    "simulated": true
-  },
-  "DHT3": { 
-    "delay_sec": 3.0, 
-    "simulated": true, 
-    "temp_c_start": 22.0, 
-    "hum_pct_start": 45.0 
+    "simulated": true,
+    "pin": 17,
+    "pull": "down",
+    "active_high": true
   },
 
-  "GSG": { "delay_sec": 0.5, "simulated": true, "threshold": 0.5 },
+  "DHT3": {
+    "delay_sec": 3.0,
+    "simulated": true,
+    "temp_c_start": 22.0,
+    "hum_pct_start": 45.0
+  },
 
+  "GSG": {
+    "delay_sec": 0.5,
+    "simulated": true,
+    "threshold": 0.5
+  },
 
   "4SD": {
     "simulated": true

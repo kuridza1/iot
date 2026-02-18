@@ -5,6 +5,7 @@
     "location": "FrontDoor",
     "default_simulated": true
   },
+
   "mqtt": {
     "enabled": true,
     "broker": "localhost",
@@ -17,10 +18,29 @@
     "flush_interval_sec": 5
   },
 
-  "DL": { "simulated": true, "pin": 21, "active_high": true },
-  "DB": { "simulated": true, "pin": 22, "active_high": true },
-  "DS1": { "simulated": true, "pin": 23, "active_high": true},
+  "DL":  { "simulated": true, "pin": 21, "active_high": true },
+  "DB":  { "simulated": true, "pin": 22, "active_high": true },
+  "DS1": { "simulated": true, "pin": 23, "active_high": true },
 
-  "DPIR1": { "delay_sec": 1.5, "simulated": true },
-  "DUS1": { "delay_sec": 2.0, "simulated": true }
+  "DPIR1": {
+    "delay_sec": 1.5,
+    "simulated": true,
+    "pin": 17,
+    "pull": "down",
+    "active_high": true
+  },
+
+  "DUS1": {
+    "delay_sec": 2.0,
+    "simulated": true,
+    "trig_pin": 5,
+    "echo_pin": 6
+  },
+
+  "DMS": {
+    "delay_sec": 0.05,
+    "simulated": true,
+    "rows": [6, 13, 19, 26],
+    "cols": [12, 16, 20, 21]
+  }
 }

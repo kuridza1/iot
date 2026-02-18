@@ -1,3 +1,5 @@
+# main_pi1.py  (your PI1 main with DMS thread added)
+
 import threading
 import time
 from typing import Dict, Any
@@ -8,10 +10,12 @@ from actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from helper.settings import load_settings
+from sensors.dms import run_membrane_loop  
 
+from helper.settings import load_settings
 from helper.telemetry import *
 from helper import GPIO
+
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
@@ -28,7 +32,7 @@ def print_menu() -> None:
 
 
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("pi1/settings.json") 
+    cfg: Dict[str, Any] = load_settings("pi1/settings.json")
 
     device_cfg = cfg.get("device", {})
     pi_id = str(device_cfg.get("pi_id", "PI1"))
@@ -46,6 +50,7 @@ def main() -> None:
     led_cfg = cfg.get("DL", {"simulated": default_simulated, "pin": 21, "active_high": True})
     buz_cfg = cfg.get("DB", {"simulated": default_simulated, "pin": 22, "active_high": True})
     btn_cfg = cfg.get("DS1", {"simulated": default_simulated, "pin": 23, "active_high": True})
+
     led = Led(
         simulated=bool(led_cfg.get("simulated", default_simulated)),
         pin=int(led_cfg.get("pin", 21)),
@@ -79,8 +84,8 @@ def main() -> None:
         publisher.enqueue(ev)
         print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
+    # --- PIR ---
     dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
-
     dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
     dpir_pin = int(dpir_cfg.get("pin", 17))
     dpir_pull = str(dpir_cfg.get("pull", "down"))
@@ -102,16 +107,11 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # --- Ultrasonic ---
     dus_cfg = cfg.get(
-    "DUS1",
-    {
-        "delay_sec": 2.0,
-        "simulated": default_simulated,
-        "trig_pin": 5,
-        "echo_pin": 6,
-        },
+        "DUS1",
+        {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6},
     )
-
     dus_sim = bool(dus_cfg.get("simulated", default_simulated))
     dus_trig = int(dus_cfg.get("trig_pin", 5))
     dus_echo = int(dus_cfg.get("echo_pin", 6))
@@ -131,6 +131,30 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # --- DMS ---
+    dms_cfg = cfg.get(
+        "DMS",
+        {"delay_sec": 0.05, "simulated": default_simulated, "rows": [6, 13, 19, 26], "cols": [12, 16, 20, 21]},
+    )
+    dms_sim = bool(dms_cfg.get("simulated", default_simulated))
+    dms_rows = [int(x) for x in dms_cfg.get("rows", [6, 13, 19, 26])]
+    dms_cols = [int(x) for x in dms_cfg.get("cols", [12, 16, 20, 21])]
+    dms_delay = float(dms_cfg.get("delay_sec", 0.05))
+
+    t = threading.Thread(
+        target=run_membrane_loop,
+        args=(
+            dms_rows,
+            dms_cols,
+            dms_delay,
+            lambda pin4: emit("sensor", "DMS_PIN", str(pin4), None, dms_sim),
+            stop_event,
+            dms_sim,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
 
     # --- CLI ---
     print_menu()
@@ -152,38 +176,33 @@ def main() -> None:
                 print("\n--- STATUS ---")
                 print(f"DL (Door Light): {'ON' if led.isOn() else 'OFF'}")
                 print(f"DB (Buzzer):     {'ON' if buzzer.isOn() else 'OFF'}")
-                print(f"DS1 (Door Button):     {'ON' if button.isOn() else 'OFF'}")
+                print(f"DS1 (Door Button): {'ON' if button.isOn() else 'OFF'}")
+                print("DMS (Membrane): publishing DMS_PIN events (4-digit)")
 
             elif choice == "2":
                 if led.isOn():
                     led.off()
                     emit("actuator", "DL", False, None, bool(led_cfg.get("simulated", default_simulated)))
-                    print("[DL] OFF")
                 else:
                     led.on()
                     emit("actuator", "DL", True, None, bool(led_cfg.get("simulated", default_simulated)))
-                    print("[DL] ON")
 
             elif choice == "3":
                 if button.isOn():
                     button.off()
-                    emit("actuator", "DS1", False, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DS1] OFF")
+                    emit("actuator", "DS1", False, None, bool(btn_cfg.get("simulated", default_simulated)))
                 else:
                     button.on()
-                    emit("actuator", "DS1", True, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DS1] ON")
+                    emit("actuator", "DS1", True, None, bool(btn_cfg.get("simulated", default_simulated)))
 
             elif choice == "4":
                 if buzzer.isOn():
                     buzzer.off()
                     emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DB] OFF")
                 else:
                     buzzer.on()
                     emit("actuator", "DB", True, None, bool(buz_cfg.get("simulated", default_simulated)))
-                    print("[DB] ON")
-        
+
             elif choice == "5":
                 seconds = 1.0
                 if len(parts) >= 2:
@@ -193,14 +212,13 @@ def main() -> None:
                         seconds = 1.0
 
                 if not buzzer.isOn():
-                    print("[DB] Buzzer is OFF. Turn it ON first (option 3).")
+                    print("[DB] Buzzer is OFF. Turn it ON first (option 4).")
                 else:
                     buzzer.beep(seconds)
                     emit("actuator", "DB_BEEP", seconds, "sec", bool(buz_cfg.get("simulated", default_simulated)))
                     print(f"[DB_BEEP] {seconds:.2f}s")
 
             elif choice == "0":
-                print("Exiting...")
                 stop_event.set()
 
             else:
@@ -212,7 +230,6 @@ def main() -> None:
     finally:
         stop_event.set()
         time.sleep(0.1)
-
         publisher.stop()
 
         try:
@@ -221,6 +238,10 @@ def main() -> None:
             pass
         try:
             buzzer.cleanup()
+        except Exception:
+            pass
+        try:
+            button.cleanup()
         except Exception:
             pass
         try:
