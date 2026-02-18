@@ -8,9 +8,9 @@ from actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from ..settings import load_settings
+from helper.settings import load_settings
 
-from telemetry import *
+from helper.telemetry import *
 from helper import GPIO
 
 def ts_str() -> str:
@@ -120,7 +120,7 @@ def main() -> None:
         target=run_ultrasonic_loop,
         args=(
             float(dus_cfg.get("delay_sec", 2.0)),
-            lambda d: emit("sensor", "DUS1", float(d), "cm", dus_sim),
+            lambda d: emit("sensor", "DUS1", None if d is None else float(d), "cm", dus_sim),
             stop_event,
             dus_sim,
             dus_trig,

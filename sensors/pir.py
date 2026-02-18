@@ -14,7 +14,7 @@ def run_pir_loop(
     """
     Simulated PIR (random bursts) OR real PIR via RPi.GPIO.
 
-    - pin: BCM pin broj (npr 17)
+    - pin: BCM pin broj
     - pull: "down" ili "up" 
     - active_high: True ako motion = HIGH
     """

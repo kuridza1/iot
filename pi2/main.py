@@ -3,7 +3,7 @@ import time
 from typing import Dict, Any, Optional
 
 from mqtt.mqtt_publisher import MqttBatchPublisher
-from telemetry import TelemetryEvent, now_ts
+from helper.telemetry import TelemetryEvent, now_ts
 from helper import GPIO
 
 from actuators.button import Button
@@ -15,7 +15,7 @@ from sensors.gyro import run_gyro_loop
 from sensors.timer import run_timer_loop
 from sensors.dht import run_dht_loop
 
-from settings import load_settings
+from helper.settings import load_settings
 
 
 def ts_str() -> str:
@@ -122,7 +122,7 @@ def main() -> None:
         target=run_ultrasonic_loop,
         args=(
             float(dus_cfg.get("delay_sec", 2.0)),
-            lambda d: emit("sensor", "DUS2", float(d), "cm", dus_sim),
+            lambda d: emit("sensor", "DUS2", None if d is None else float(d), "cm", dus_sim),
             stop_event,
             dus_sim,
             dus_trig,

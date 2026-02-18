@@ -2,20 +2,44 @@ import random
 import time
 from typing import Callable, Optional
 
+SPEED_OF_SOUND_CM_S = 34300.0
+
+def _measure_distance_cm(GPIO, trig_pin: int, echo_pin: int, timeout_s: float = 0.02) -> Optional[float]:
+    GPIO.output(trig_pin, False)
+    time.sleep(0.0002)
+
+    GPIO.output(trig_pin, True)
+    time.sleep(0.00001)
+    GPIO.output(trig_pin, False)
+
+    start = time.time()
+    while GPIO.input(echo_pin) == 0:
+        if time.time() - start > timeout_s:
+            return None
+    pulse_start = time.time()
+
+    while GPIO.input(echo_pin) == 1:
+        if time.time() - pulse_start > timeout_s:
+            return None
+    pulse_end = time.time()
+
+    pulse_duration = pulse_end - pulse_start
+    return (pulse_duration * SPEED_OF_SOUND_CM_S) / 2.0
+
 
 def run_ultrasonic_loop(
     delay: float,
-    callback: Callable[[float], None],
+    callback: Callable[[Optional[float]], None],
     stop_event,
     simulated: bool = True,
     trig_pin: int = 5,
     echo_pin: int = 6,
+    max_cm: float = 200.0,
+    timeout_s: float = 0.02,
 ) -> None:
     """
-    Simulated OR real ultrasonic distance sensor (HC-SR04).
-
-    - trig_pin: BCM pin za TRIG
-    - echo_pin: BCM pin za ECHO
+    Simulated OR real ultrasonic (HC-SR04).
+    callback(distance_cm or None)
     """
 
     # ---------- SIMULATED ----------
@@ -26,7 +50,7 @@ def run_ultrasonic_loop(
                 distance = random.uniform(10.0, 40.0)
             else:
                 distance += random.uniform(-8.0, 8.0)
-                distance = min(200.0, max(5.0, distance))
+                distance = min(max_cm, max(5.0, distance))
 
             callback(round(distance, 1))
             time.sleep(delay)
@@ -39,54 +63,16 @@ def run_ultrasonic_loop(
         raise RuntimeError("RPi.GPIO nije dostupna. Vrati na simulated=True.") from e
 
     GPIO.setmode(GPIO.BCM)
-
     GPIO.setup(trig_pin, GPIO.OUT)
     GPIO.setup(echo_pin, GPIO.IN)
 
-    GPIO.output(trig_pin, False)
-    time.sleep(0.2)  # stabilizacija senzora
-
     try:
         while not stop_event.is_set():
-
-            # TRIG pulse (10 µs)
-            GPIO.output(trig_pin, True)
-            time.sleep(0.00001)
-            GPIO.output(trig_pin, False)
-
-            # čekaj početak ECHO
-            start = time.time()
-            timeout = start + 0.04
-
-            while GPIO.input(echo_pin) == 0:
-                start = time.time()
-                if start > timeout:
-                    start = None
-                    break
-
-            if start is None:
-                continue
-
-            # čekaj kraj ECHO
-            stop = time.time()
-            while GPIO.input(echo_pin) == 1:
-                stop = time.time()
-                if stop > timeout:
-                    stop = None
-                    break
-
-            if stop is None:
-                continue
-
-            elapsed = stop - start
-
-            # brzina zvuka ≈ 343 m/s
-            distance_cm = (elapsed * 34300) / 2
-
-            callback(round(distance_cm, 1))
-
+            d = _measure_distance_cm(GPIO, trig_pin, echo_pin, timeout_s=timeout_s)
+            if d is not None and d > max_cm:
+                d = None
+            callback(None if d is None else round(d, 1))
             time.sleep(delay)
-
     finally:
         try:
             GPIO.cleanup((trig_pin, echo_pin))

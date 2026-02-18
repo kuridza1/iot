@@ -1,33 +1,65 @@
 import random
-import threading
 import time
-from typing import Callable, Tuple
+import math
+from typing import Callable
 
 
-def run_gyro_loop(delay: float,
-                  callback_xyz: Callable[[Tuple[float, float, float]], None],
-                  movement_cb: Callable[[float], None],
-                  stop_event: threading.Event,
-                  movement_threshold: float = 80.0,
-                  cooldown_sec: float = 3.0) -> None:
-    gx = gy = gz = 0.0
-    last_alarm = 0.0
+def run_gsg_loop(
+    delay: float,
+    threshold: float,
+    callback: Callable[[bool], None],
+    stop_event,
+    simulated: bool = True,
+) -> None:
+    """
+    Simulated OR real MPU6050 shake detector (GSG).
+
+    callback(True) kada je detektovan pokret.
+    """
+
+    # ---------- SIMULATED ----------
+    if simulated:
+        baseline = 1.0 + random.uniform(-0.02, 0.02)
+
+        while not stop_event.is_set():
+            # mali šum oko baseline (~1g)
+            magnitude = baseline + random.uniform(-0.03, 0.03)
+
+            # povremeni "shake"
+            if random.random() < 0.08:
+                magnitude += random.choice([-1, 1]) * random.uniform(threshold + 0.05, threshold + 0.8)
+
+            if abs(magnitude - baseline) > threshold:
+                callback(True)
+
+            time.sleep(delay)
+
+        return
+
+    # ---------- REAL SENSOR ----------
+    try:
+        import helper.MPU6050 as MPU6050
+    except Exception as e:
+        raise RuntimeError("MPU6050 modul nije dostupan. Vrati na simulated=True.") from e
+
+    mpu = MPU6050.MPU6050()
+    mpu.dmp_initialize()
+
+    baseline = None
 
     while not stop_event.is_set():
-        gx += random.uniform(-6.0, 6.0)
-        gy += random.uniform(-6.0, 6.0)
-        gz += random.uniform(-6.0, 6.0)
+        accel = mpu.get_acceleration()
 
-        gx = max(-250.0, min(250.0, gx))
-        gy = max(-250.0, min(250.0, gy))
-        gz = max(-250.0, min(250.0, gz))
+        x = accel[0] / 16384.0
+        y = accel[1] / 16384.0
+        z = accel[2] / 16384.0
 
-        callback_xyz((round(gx, 2), round(gy, 2), round(gz, 2)))
+        magnitude = math.sqrt(x*x + y*y + z*z)
 
-        mag = (gx*gx + gy*gy + gz*gz) ** 0.5
-        now = time.time()
-        if mag >= movement_threshold and (now - last_alarm) >= cooldown_sec:
-            last_alarm = now
-            movement_cb(float(round(mag, 2)))
+        if baseline is None:
+            baseline = magnitude
+
+        if abs(magnitude - baseline) > threshold:
+            callback(True)
 
         time.sleep(delay)

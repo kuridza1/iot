@@ -3,9 +3,9 @@ import time
 from typing import Dict, Any
 
 from helper import GPIO
-from settings import load_settings
+from helper.settings import load_settings
 
-from telemetry import TelemetryEvent, now_ts
+from helper.telemetry import TelemetryEvent, now_ts
 from mqtt.mqtt_publisher import MqttBatchPublisher
 
 from sensors.pir import run_pir_loop
