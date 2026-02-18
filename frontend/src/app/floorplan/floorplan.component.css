@@ -4,11 +4,32 @@
   max-width: 1100px;
 }
 
-.plan-img {
-  width: 855px;
-  height: 700px;
-  display: block;
+.plan-frame {
+  width: 598px;
+  height: 490px;
+  border-radius: 55px;
+  border: 15px solid #966e52;
+  outline: 4px solid #704934;
+  outline-offset: -7px;
+
+  box-shadow:
+    20px 20px 40px #000,        /* outer shadow */
+    inset 0 0 40px rgba(0,0,0,0.7); /* inner shadow */
+
+  overflow: hidden; /* IMPORTANT */
 }
+
+.plan-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 40px;
+  outline: 4px solid #352219;
+  outline-offset: -4px;
+  z-index: -1;
+}
+
+
 
 .overlay {
   position: absolute;

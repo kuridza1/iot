@@ -1,4 +1,9 @@
 {
+  "SERVER": {
+  "enabled": true,
+  "base_url": "http://0.0.0.0:5000",
+  "dht3_device": "PI2"
+  },
   "device": {
     "pi_id": "PI3",
     "device_name": "SmartRooms",
@@ -32,5 +37,9 @@
     "active_high": true
   },
 
-  "LCD": { "simulated": true }
+  "LCD": {
+    "simulated": false,
+    "auto_rotate": true,
+    "rotate_period_sec": 2.5
+  }
 }
