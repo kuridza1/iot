@@ -6,3 +6,8 @@ helper/__pycache__/*
 pi1/__pycache__/*
 pi2/__pycache__/*
 pi3/__pycache__/*
+actuators/__pycache__/*
+actuators/lcd/__pycache__/*
+mqtt/__pycache__/*
+sensors/__pycache__/*
+server/__pycache__/*
