@@ -46,10 +46,8 @@
     "hum_pct_start": 45.0 
   },
 
-  "GSG": {
-    "delay_sec": 0.5,
-    "simulated": true
-  },
+  "GSG": { "delay_sec": 0.5, "simulated": true, "threshold": 0.5 },
+
 
   "4SD": {
     "simulated": true

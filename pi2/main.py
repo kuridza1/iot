@@ -11,7 +11,7 @@ from actuators.four_digit_timer import FourDigitTimer
 
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
-from sensors.gyro import run_gyro_loop
+from sensors.gsg import run_gyro_loop
 from sensors.timer import run_timer_loop
 from sensors.dht import run_dht_loop
 
@@ -133,26 +133,26 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated})
-    dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
+    gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated, "threshold": 0.5})
 
-    # --- GSG thread (movement_cb + xyz) ---
+    gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
+    gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
+
     t = threading.Thread(
         target=run_gyro_loop,
         args=(
             float(gsg_cfg.get("delay_sec", 0.5)),
-            lambda xyz: (
-                emit("sensor", "GSG_X", xyz[0], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
-                emit("sensor", "GSG_Y", xyz[1], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
-                emit("sensor", "GSG_Z", xyz[2], "deg/s", bool(gsg_cfg.get("simulated", default_simulated))),
-            ),
-            lambda mag: emit("sensor", "GSG_MOVEMENT", float(mag), "mag", bool(gsg_cfg.get("simulated", default_simulated))),
+            gsg_threshold,
+            lambda moving: emit("sensor", "GSG", bool(moving), None, gsg_sim),
             stop_event,
+            gsg_sim,
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
+
+    dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
 
     # --- DHT3 loop: emits TEMP + HUM ---
     t = threading.Thread(
@@ -172,7 +172,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # --- 4SD timer thread (finished_cb) ---
     t = threading.Thread(
         target=run_timer_loop,
         args=(
@@ -186,7 +185,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # --- CLI ---
     print_menu()
 
     try:

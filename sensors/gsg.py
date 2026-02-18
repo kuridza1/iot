@@ -17,15 +17,12 @@ def run_gsg_loop(
     callback(True) kada je detektovan pokret.
     """
 
-    # ---------- SIMULATED ----------
     if simulated:
         baseline = 1.0 + random.uniform(-0.02, 0.02)
 
         while not stop_event.is_set():
-            # mali šum oko baseline (~1g)
             magnitude = baseline + random.uniform(-0.03, 0.03)
 
-            # povremeni "shake"
             if random.random() < 0.08:
                 magnitude += random.choice([-1, 1]) * random.uniform(threshold + 0.05, threshold + 0.8)
 
@@ -36,9 +33,8 @@ def run_gsg_loop(
 
         return
 
-    # ---------- REAL SENSOR ----------
     try:
-        import helper.MPU6050 as MPU6050
+        import helper.gsg.MPU6050 as MPU6050
     except Exception as e:
         raise RuntimeError("MPU6050 modul nije dostupan. Vrati na simulated=True.") from e
 
