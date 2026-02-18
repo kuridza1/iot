@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from helper import GPIO
+from helper.helper import GPIO
 
 
 @dataclass

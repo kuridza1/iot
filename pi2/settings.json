@@ -5,22 +5,60 @@
     "location": "Garage",
     "default_simulated": true
   },
+
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.107.132",
+    "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
-    "client_id": "pi1-smartdoor",
+    "client_id": "pi2-smart-garage",
     "qos": 1,
     "retain": false,
     "batch_size": 10,
     "flush_interval_sec": 5
   },
 
-  "DL": { "simulated": true, "pin": 21, "active_high": true },
-  "DB": { "simulated": true, "pin": 22, "active_high": true },
-  "DS1": { "simulated": true, "pin": 23, "active_high": true},
+  "DS2": {
+    "simulated": true,
+    "pin": 23,
+    "active_high": true
+  },
 
-  "DPIR1": { "delay_sec": 1.5, "simulated": true },
-  "DUS1": { "delay_sec": 2.0, "simulated": true }
+  "BTN": {
+    "simulated": true,
+    "pin": 24,
+    "active_high": true
+  },
+
+  "DUS2": {
+    "delay_sec": 2.0,
+    "simulated": true,
+    "trig_pin": 5,
+    "echo_pin": 6
+  },
+
+  "DPIR2": {
+    "delay_sec": 1.5,
+    "simulated": true,
+    "pin": 17,
+    "pull": "down",
+    "active_high": true
+  },
+
+  "DHT3": {
+    "delay_sec": 3.0,
+    "simulated": true,
+    "temp_c_start": 22.0,
+    "hum_pct_start": 45.0
+  },
+
+  "GSG": {
+    "delay_sec": 0.5,
+    "simulated": true,
+    "threshold": 0.5
+  },
+
+  "4SD": {
+    "simulated": true
+  }
 }

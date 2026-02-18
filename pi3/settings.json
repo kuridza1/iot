@@ -22,7 +22,13 @@
     "flush_interval_sec": 5
   },
 
-  "DPIR3": { "delay_sec": 1.5, "simulated": true },
+  "DPIR3": {
+    "delay_sec": 1.5,
+    "simulated": true,
+    "pin": 17,
+    "pull": "down",
+    "active_high": true
+  },
 
   "DHT1": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 22.5, "hum_pct_start": 45.0 },
   "DHT2": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 21.0, "hum_pct_start": 48.0 },

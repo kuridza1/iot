@@ -3,9 +3,9 @@ import time
 from typing import Dict, Any, Optional
 
 from helper import GPIO
-from settings import load_settings
+from helper.settings import load_settings
 
-from telemetry import TelemetryEvent, now_ts
+from helper.telemetry import TelemetryEvent, now_ts
 from mqtt.mqtt_publisher import MqttBatchPublisher
 
 from sensors.pir import run_pir_loop
@@ -43,6 +43,7 @@ def main() -> None:
     publisher.start()
 
     stop_event = threading.Event()
+    threads: list[threading.Thread] = []
 
     def emit(kind: str, code: str, value, unit: str | None, simulated: bool) -> None:
         ev = TelemetryEvent(
@@ -74,6 +75,31 @@ def main() -> None:
 
     # LCD enable/disable (logical)
     lcd_enabled = True
+    dpir_cfg = cfg.get("DPIR3", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
+
+    dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
+    dpir_pin = int(dpir_cfg.get("pin", 17))
+    dpir_pull = str(dpir_cfg.get("pull", "down"))
+    dpir_active_high = bool(dpir_cfg.get("active_high", True))
+
+    t = threading.Thread(
+        target=run_pir_loop,
+        args=(
+            float(dpir_cfg.get("delay_sec", 1.5)),
+            lambda motion: emit("sensor", "DPIR3", bool(motion), None, dpir_sim),
+            stop_event,
+            dpir_sim,
+            dpir_pin,
+            dpir_pull,
+            dpir_active_high,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
+    dht1_cfg = cfg.get("DHT1", {"delay_sec": 3.0, "simulated": default_simulated})
+    dht2_cfg = cfg.get("DHT2", {"delay_sec": 3.0, "simulated": default_simulated})
+    ir_cfg = cfg.get("IR", {"delay_sec": 0.25, "simulated": default_simulated})
 
     # Rotation timing
     rotate_period = float(lcd_cfg.get("rotate_period_sec", 2.5))
@@ -82,7 +108,7 @@ def main() -> None:
     latest: Dict[str, Dict[str, Optional[float]]] = {
         "DHT1": {"t": None, "h": None},
         "DHT2": {"t": None, "h": None},
-        "DHT3": {"t": None, "h": None},  # from server (PI2)
+        "DHT3": {"t": None, "h": None},
     }
 
     def set_dht(name: str, temp_c: float, hum_pct: float) -> None:
@@ -178,21 +204,7 @@ def main() -> None:
     dht2_cfg = cfg.get("DHT2", {})
     ir_cfg = cfg.get("IR", {})
 
-    threading.Thread(
-        target=run_pir_loop,
-        args=(
-            float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda m: emit("sensor", "DPIR3", bool(m), None, bool(dpir_cfg.get("simulated", default_simulated))),
-            stop_event,
-            bool(dpir_cfg.get("simulated", default_simulated)),
-            int(dpir_cfg.get("pin", 17)),
-            str(dpir_cfg.get("pull", "down")),
-            bool(dpir_cfg.get("active_high", True)),
-        ),
-        daemon=True,
-    ).start()
-
-    threading.Thread(
+    t = threading.Thread(
         target=run_dht_loop,
         args=(
             float(dht1_cfg.get("delay_sec", 3.0)),
