@@ -12,6 +12,7 @@ from actuators.button import Button
 from actuators.buzzer import Buzzer
 from actuators.led import Led
 from mqtt.mqtt_publisher import MqttBatchPublisher
+from sensors.dms import run_membrane_loop
 from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
 from helper.settings import load_settings
@@ -184,6 +185,20 @@ def main() -> None:
     # ============================================================
     # THREADS — PIR
     # ============================================================
+    def run_button_loop(delay_sec: float, stop_event: threading.Event) -> None:
+        last = None
+        while not stop_event.is_set():
+            curr = button.isOn()  # mora da čita GPIO.input interno
+            if last is None:
+                last = curr
+            elif curr != last:
+                last = curr
+                emit("sensor", "DS1", curr, None, bool(btn_cfg.get("simulated", default_simulated)))
+            time.sleep(delay_sec)
+
+    t = threading.Thread(target=run_button_loop, args=(0.02, stop_event), daemon=True)
+    t.start()
+    threads.append(t)
 
     dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": True})
 

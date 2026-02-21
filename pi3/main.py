@@ -2,7 +2,7 @@ import threading
 import time
 from typing import Dict, Any, Optional
 
-from helper import GPIO
+from helper.helper import GPIO
 from helper.settings import load_settings
 
 from helper.telemetry import TelemetryEvent, now_ts
@@ -43,9 +43,9 @@ def main() -> None:
     publisher.start()
 
     stop_event = threading.Event()
-    threads: list[threading.Thread] = []
+    threads = []  # type: list[threading.Thread]
 
-    def emit(kind: str, code: str, value, unit: str | None, simulated: bool) -> None:
+    def emit(kind: str, code: str, value: Any, unit: Optional[str], simulated: bool) -> None:
         ev = TelemetryEvent(
             device=pi_id,
             device_name=device_name,
@@ -71,11 +71,19 @@ def main() -> None:
         active_high=bool(rgb_cfg.get("active_high", True)),
     )
 
-    lcd = Lcd(simulated=bool(lcd_cfg.get("simulated", default_simulated)))
+    lcd = Lcd(
+        simulated=bool(lcd_cfg.get("simulated", default_simulated)),
+        address=int(lcd_cfg.get("address", 0x27)),
+    )
 
     # LCD enable/disable (logical)
     lcd_enabled = True
-    dpir_cfg = cfg.get("DPIR3", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
+
+    # ---------- PIR ----------
+    dpir_cfg = cfg.get(
+        "DPIR3",
+        {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True},
+    )
 
     dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
     dpir_pin = int(dpir_cfg.get("pin", 17))
@@ -97,6 +105,8 @@ def main() -> None:
     )
     t.start()
     threads.append(t)
+
+    # ---------- DHT / IR configs ----------
     dht1_cfg = cfg.get("DHT1", {"delay_sec": 3.0, "simulated": default_simulated})
     dht2_cfg = cfg.get("DHT2", {"delay_sec": 3.0, "simulated": default_simulated})
     ir_cfg = cfg.get("IR", {"delay_sec": 0.25, "simulated": default_simulated})
@@ -140,10 +150,10 @@ def main() -> None:
     order = ["DHT1", "DHT2", "DHT3"]
     idx = 0
 
-    def render_screen(name: str, t: Optional[float], h: Optional[float]) -> str:
-        if t is None or h is None:
+    def render_screen(name: str, tval: Optional[float], hval: Optional[float]) -> str:
+        if tval is None or hval is None:
             return f"{name}\nNo data"
-        return f"{name} T:{t:4.1f}C\nH:{h:4.1f}%"
+        return f"\n{name} T:{tval:4.1f}C\nH:{hval:4.1f}%"
 
     def refresh_lcd_once() -> str:
         nonlocal idx
@@ -159,13 +169,10 @@ def main() -> None:
                     latest["DHT3"]["h"] = h3
 
         with lcd_lock:
-            t = latest[name]["t"]
-            h = latest[name]["h"]
+            tval = latest[name]["t"]
+            hval = latest[name]["h"]
 
-        if t is None or h is None:
-            text = f"{name}\nNo data"
-        else:
-            text = f"{name} T:{t:4.1f}C\nH:{h:4.1f}%"
+        text = render_screen(name, tval, hval)
 
         if lcd_enabled:
             lcd.show(text)
@@ -175,7 +182,6 @@ def main() -> None:
     def lcd_rotate_loop() -> None:
         nonlocal idx
         while not stop_event.is_set():
-            # advance to next screen
             name = order[idx % len(order)]
             idx += 1
 
@@ -189,31 +195,27 @@ def main() -> None:
                         latest["DHT3"]["h"] = h3
 
             with lcd_lock:
-                t = latest[name]["t"]
-                h = latest[name]["h"]
+                tval = latest[name]["t"]
+                hval = latest[name]["h"]
 
             if lcd_enabled:
-                lcd.show(render_screen(name, t, h))
+                lcd.show(render_screen(name, tval, hval))
 
             time.sleep(rotate_period)
 
     threading.Thread(target=lcd_rotate_loop, daemon=True).start()
 
-    dpir_cfg = cfg.get("DPIR3", {})
-    dht1_cfg = cfg.get("DHT1", {})
-    dht2_cfg = cfg.get("DHT2", {})
-    ir_cfg = cfg.get("IR", {})
-
-    t = threading.Thread(
+    # ---------- DHT1 thread ----------
+    threading.Thread(
         target=run_dht_loop,
         args=(
             float(dht1_cfg.get("delay_sec", 3.0)),
             float(dht1_cfg.get("temp_c_start", 22.0)),
             float(dht1_cfg.get("hum_pct_start", 45.0)),
-            lambda t, h: (
-                set_dht("DHT1", t, h),
-                emit("sensor", "DHT1_TEMP", float(t), "C", bool(dht1_cfg.get("simulated", default_simulated))),
-                emit("sensor", "DHT1_HUM", float(h), "%", bool(dht1_cfg.get("simulated", default_simulated))),
+            lambda tval, hval: (
+                set_dht("DHT1", tval, hval),
+                emit("sensor", "DHT1_TEMP", float(tval), "C", bool(dht1_cfg.get("simulated", default_simulated))),
+                emit("sensor", "DHT1_HUM", float(hval), "%", bool(dht1_cfg.get("simulated", default_simulated))),
             ),
             stop_event,
             bool(dht1_cfg.get("simulated", default_simulated)),
@@ -222,16 +224,17 @@ def main() -> None:
         daemon=True,
     ).start()
 
+    # ---------- DHT2 thread ----------
     threading.Thread(
         target=run_dht_loop,
         args=(
             float(dht2_cfg.get("delay_sec", 3.0)),
             float(dht2_cfg.get("temp_c_start", 21.0)),
             float(dht2_cfg.get("hum_pct_start", 48.0)),
-            lambda t, h: (
-                set_dht("DHT2", t, h),
-                emit("sensor", "DHT2_TEMP", float(t), "C", bool(dht2_cfg.get("simulated", default_simulated))),
-                emit("sensor", "DHT2_HUM", float(h), "%", bool(dht2_cfg.get("simulated", default_simulated))),
+            lambda tval, hval: (
+                set_dht("DHT2", tval, hval),
+                emit("sensor", "DHT2_TEMP", float(tval), "C", bool(dht2_cfg.get("simulated", default_simulated))),
+                emit("sensor", "DHT2_HUM", float(hval), "%", bool(dht2_cfg.get("simulated", default_simulated))),
             ),
             stop_event,
             bool(dht2_cfg.get("simulated", default_simulated)),
@@ -240,6 +243,7 @@ def main() -> None:
         daemon=True,
     ).start()
 
+    # ---------- IR thread ----------
     threading.Thread(
         target=run_ir_loop,
         args=(

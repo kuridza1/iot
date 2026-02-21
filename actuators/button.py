@@ -1,41 +1,25 @@
 from dataclasses import dataclass
-
 from helper.helper import GPIO
-
 
 @dataclass
 class Button:
     """
-    @brief Button input
-    Behaves as a trigger
+    @brief Button input (digital)
     """
     simulated: bool
     pin: int
     active_high: bool = True
+    pull: str = "down"   # "up" ili "down"
 
     def __post_init__(self) -> None:
-        self._state = False
         if not self.simulated:
-            GPIO.setup_in(self.pin)
+            GPIO.setup_in(self.pin, pull=self.pull)
 
-    def isOn(self):
-        if self._state == False:
-            return False
-        return True
-
-    def on(self) -> None:
-        self._set(True)
-
-    def off(self) -> None:
-        self._set(False)
-
-    def _set(self, on: bool) -> None:
-        self._state = on
+    def isOn(self) -> bool:
         if self.simulated or not GPIO.available:
-            return
-        value = on if self.active_high else (not on)
-        GPIO.output(self.pin, value)
-
+            return False
+        v = GPIO.input(self.pin)
+        return v if self.active_high else (not v)
 
     def cleanup(self) -> None:
         pass

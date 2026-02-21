@@ -8,7 +8,7 @@
 
   "mqtt": {
     "enabled": true,
-    "broker": "localhost",
+    "broker": "192.168.107.132",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi2-smart-garage",

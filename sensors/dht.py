@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from helper import GPIO as GPIO_HELPER
+from helper.helper import GPIO as GPIO_HELPER
 
 
 @dataclass

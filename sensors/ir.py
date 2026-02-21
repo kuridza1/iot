@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional
 
-from helper import GPIO as GPIO_HELPER
+from helper.helper import GPIO as GPIO_HELPER
 
 DEFAULT_SIM_CODES = [
     "LEFT", "RIGHT", "UP", "DOWN",

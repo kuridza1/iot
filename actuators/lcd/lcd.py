@@ -33,8 +33,8 @@ class Lcd:
                     pins_db=[4, 5, 6, 7],
                     GPIO=mcp
                 )
-
-                mcp.output(3, 1)  # backlight ON
+                mcp.output(3, 1)
+                
                 self._lcd.begin(self.cols, self.rows)
                 self._lcd.clear()
 
