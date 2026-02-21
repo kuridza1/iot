@@ -1,0 +1,35 @@
+<div class="timer-shell">
+  <div class="timer-card">
+    <div class="timer-head">
+      <div class="timer-title">Kuhinjska štoperica</div>
+      <div class="timer-sub">
+        <span class="timer-sub-label">Device:</span>
+        <span class="timer-sub-val">{{ device }}</span>
+      </div>
+    </div>
+
+    <div class="timer-display">
+      <div class="timer-digits">{{ display }}</div>
+    </div>
+
+    <div class="timer-grid">
+      <div class="timer-field">
+        <label>Postavi vreme (sek)</label>
+        <input type="number" [(ngModel)]="setSeconds" min="0" step="1" />
+      </div>
+
+      <div class="timer-field">
+        <label>N sekundi na BTN (sek)</label>
+        <input type="number" [(ngModel)]="addSeconds" min="0" step="1" />
+      </div>
+
+      <button class="btn btn-ghost" (click)="applySetTime()">Set</button>
+      <button class="btn btn-ghost" (click)="applyAddSeconds()">Sačuvaj N</button>
+
+      <button class="btn btn-green" (click)="start()">Start</button>
+      <button class="btn btn-ghost" (click)="stop()">Stop</button>
+      <button class="btn btn-ghost" (click)="reset()">Reset</button>
+      <button class="btn btn-amber" (click)="pressBtn()">BTN (+N / stop blink)</button>
+    </div>
+  </div>
+</div>

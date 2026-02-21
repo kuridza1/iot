@@ -5,17 +5,16 @@
     "location": "Garage",
     "default_simulated": true
   },
-
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.107.132",
+    "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi2-smart-garage",
-    "qos": 1,
+    "qos": 0,
     "retain": false,
-    "batch_size": 10,
-    "flush_interval_sec": 5
+    "batch_size": 1,
+    "flush_interval_sec": 0.2
   },
 
   "DS2": {

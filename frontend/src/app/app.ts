@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import { PANES, PiId } from './model/smart-house.model';
 import { FloorplanComponent } from './floorplan/floorplan.component';
 import { GrafanaEmbedComponent } from './grafana-embed/grafana-embed.component';
-
+import { Timer } from './timer/timer';
 @Component({
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
-  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent],
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Timer],
 })
 export class App {
   selectedPi: PiId | null = null;
