@@ -7,7 +7,7 @@ ssh korisnik@hostname (hostname ce nam dati)
 mkdir -p ~/tojest
 
 exit
-
+ 
 scp -r ./iot(ili pi1)/* korisnik@hostname:/home/korisnik/tojest/
 
 ssh korisnik@hostname
@@ -23,6 +23,7 @@ python3 device/main.py
 // za izlazak
 sudo shutdown -h now
 
+BROKER 192.168.107.132
 
 ---
 

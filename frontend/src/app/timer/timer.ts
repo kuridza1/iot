@@ -1,20 +1,8 @@
-import {
-  Component,
-  Inject,
-  NgZone,
-  OnDestroy,
-  OnInit,
-  PLATFORM_ID,
-  ChangeDetectorRef,
-} from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-type TimerEvent = {
-  device?: string;
-  code?: string;
-  value?: any;
-};
+import { Subscription } from 'rxjs';
+import { TelemetryService } from '../service/telemetry.service';
 
 @Component({
   selector: 'app-timer',
@@ -30,13 +18,20 @@ export class Timer implements OnInit, OnDestroy {
   setSeconds = 60;
   addSeconds = 5;
 
-  private es?: EventSource;
+  // Blink control: if idle and user pressed BTN once, stop blinking until timer leaves 00:00
+  blinkSuppressed = false;
+
   private isBrowser: boolean;
+  private sub?: Subscription;
+
+  // Fail-safe: if no telemetry update for N ms -> force 00:00
+  private lastTelemetryAt = 0;
+  private watchdogTimer?: any;
+  private readonly staleMs = 3000;
 
   constructor(
     @Inject(PLATFORM_ID) platformId: Object,
-    private zone: NgZone,
-    private cdr: ChangeDetectorRef
+    private telemetry: TelemetryService
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
@@ -44,13 +39,52 @@ export class Timer implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     if (!this.isBrowser) return;
 
+    // Always show something immediately
+    this.display = '00:00';
+
     await this.loadInitialState();
-    this.connectRealtime();
+
+    // Realtime ONLY through service (service must avoid duplicates)
+    this.telemetry.connect('http://localhost:5000');
+
+    this.sub = this.telemetry.getState().subscribe((snap) => {
+      this.lastTelemetryAt = Date.now();
+
+      const kText = `${this.device}:4SD`;
+      const kRem = `${this.device}:4SD_REM`;
+
+      const text = snap?.[kText]?.value;
+      const rem = Number(snap?.[kRem]?.value);
+
+      if (typeof text === 'string' && text.length) {
+        this.display = text;
+      } else if (Number.isFinite(rem)) {
+        this.display = this.formatMMSS(rem);
+      } else {
+        this.display = '00:00';
+      }
+
+      // If timer left idle state, allow blinking next time it returns to 00:00
+      if (this.display !== '00:00') {
+        this.blinkSuppressed = false;
+      }
+    });
+
+    // Watchdog: if telemetry “utihne”, UI falls back to 00:00
+    this.watchdogTimer = setInterval(() => {
+      if (!this.lastTelemetryAt) return;
+      if (Date.now() - this.lastTelemetryAt > this.staleMs) {
+        this.display = '00:00';
+        // keep suppressed as-is (your choice); I’d reset so idle blinks again
+        this.blinkSuppressed = false;
+      }
+    }, 500);
   }
 
   ngOnDestroy(): void {
-    if (!this.isBrowser) return;
-    this.cleanupRealtime();
+    this.sub?.unsubscribe();
+    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
+    this.watchdogTimer = undefined;
   }
 
   private async loadInitialState(): Promise<void> {
@@ -77,101 +111,6 @@ export class Timer implements OnInit, OnDestroy {
       // ignore
     }
   }
-
- private reconnectTimer?: any;
-  private reconnectDelayMs = 500;
-
-  private connectRealtime(): void {
-    if (!this.isBrowser) return;
-
-    // uvek počisti
-    this.cleanupRealtime();
-
-    const url = 'http://localhost:5000/events';
-    const es = new EventSource(url);
-    this.es = es;
-
-    const scheduleReconnect = () => {
-      // izbegni beskonačno pravljenje novih konekcija
-      if (this.reconnectTimer) return;
-
-      const delay = this.reconnectDelayMs;
-      this.reconnectDelayMs = Math.min(8000, Math.floor(this.reconnectDelayMs * 1.7));
-
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectTimer = undefined;
-        this.connectRealtime();
-      }, delay);
-    };
-
-    es.addEventListener('open', () => {
-      // kad se konektuje, resetuj backoff
-      this.reconnectDelayMs = 500;
-    });
-
-    es.addEventListener('snapshot', (e: any) => {
-      try {
-        const snap = JSON.parse(e.data || '{}');
-        const kText = `${this.device}:4SD`;
-        const kRem = `${this.device}:4SD_REM`;
-
-        const text = snap?.[kText]?.value;
-        const rem = Number(snap?.[kRem]?.value);
-
-        this.zone.run(() => {
-          if (typeof text === 'string' && text.length) {
-            this.display = text;
-          } else if (Number.isFinite(rem)) {
-            this.display = this.formatMMSS(rem);
-          }
-          // u dev modu pomaže da “uhvati” promenu posle HMR
-          setTimeout(() => this.cdr.detectChanges(), 0);
-        });
-      } catch {}
-    });
-
-    es.onmessage = (e) => {
-      try {
-        const ev = JSON.parse(e.data || '{}');
-        const dev = String(ev.device ?? '').trim();
-        if (dev && dev !== this.device) return;
-
-        if (ev.code === '4SD') {
-          const text = String(ev.value ?? '00:00');
-          this.zone.run(() => {
-            this.display = text;
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
-        } else if (ev.code === '4SD_REM') {
-          const rem = Number(ev.value);
-          if (!Number.isFinite(rem)) return;
-          this.zone.run(() => {
-            this.display = this.formatMMSS(rem);
-            setTimeout(() => this.cdr.detectChanges(), 0);
-          });
-        }
-      } catch {}
-    };
-
-    es.onerror = () => {
-      // EventSource ponekad ne reconnectuje lepo u dev/HMR.
-      // Ručno ga zatvaramo i pravimo novi.
-      try { es.close(); } catch {}
-      scheduleReconnect();
-    };
-  }
-
-  private cleanupRealtime(): void {
-    try { this.es?.close(); } catch {}
-    this.es = undefined;
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = undefined;
-    }
-  }
-
-
 
   private formatMMSS(totalSeconds: number): string {
     const sec = Math.max(0, Math.floor(totalSeconds));
@@ -214,9 +153,19 @@ export class Timer implements OnInit, OnDestroy {
 
   async reset(): Promise<void> {
     await this.post('/pi2/timer/reset', { device: this.device });
+    // After reset you likely want blinking again
+    this.blinkSuppressed = false;
+    this.display = '00:00';
   }
 
   async pressBtn(): Promise<void> {
+    // UI rule:
+    // If idle (00:00 blinking), pressing BTN stops blinking (keeps 00:00 steady).
+    if (this.display === '00:00') {
+      this.blinkSuppressed = true;
+    }
+
+    // Always forward BTN to server; server decides (+N) when running.
     await this.post('/pi2/btn/press', { device: this.device });
   }
 }

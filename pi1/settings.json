@@ -3,12 +3,11 @@
     "pi_id": "PI1",
     "device_name": "SmartDoor",
     "location": "FrontDoor",
-    "default_simulated": false
+    "default_simulated": true
   },
 
   "mqtt": {
     "enabled": true,
-    // "broker": "192.168.107.132",
     "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
@@ -19,8 +18,8 @@
     "flush_interval_sec": 5
   },
 
-  "DL":  { "simulated": false, "pin": 21, "active_high": true },
-  "DB":  { "simulated": false, "pin": 22, "active_high": true },
+  "DL":  { "simulated": true, "pin": 21, "active_high": true },
+  "DB":  { "simulated": true, "pin": 22, "active_high": true },
   "DS1": { "simulated": true, "pin": 17, "active_high": false, "pull": "up" },
 
   "DPIR1": {
@@ -33,7 +32,7 @@
 
   "DUS1": {
     "delay_sec": 2.0,
-    "simulated": false,
+    "simulated": true,
     "trig_pin": 4,
     "echo_pin": 17
   },
