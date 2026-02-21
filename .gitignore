@@ -11,3 +11,4 @@ actuators/lcd/__pycache__/*
 mqtt/__pycache__/*
 sensors/__pycache__/*
 server/__pycache__/*
+__pycache__/
