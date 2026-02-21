@@ -21,16 +21,16 @@ class InfluxReader:
 
     def latest_num(self, device: str, code: str, lookback: str = "15m") -> Optional[float]:
         flux = f"""
-from(bucket: "{self._bucket}")
-  |> range(start: -{lookback})
-  |> filter(fn: (r) =>
-      r._measurement == "telemetry" and
-      r.device == "{device}" and
-      r.code == "{code}" and
-      r._field == "value_num"
-  )
-  |> last()
-"""
+            from(bucket: "{self._bucket}")
+            |> range(start: -{lookback})
+            |> filter(fn: (r) =>
+                r._measurement == "telemetry" and
+                r.device == "{device}" and
+                r.code == "{code}" and
+                r._field == "value_num"
+            )
+            |> last()
+            """
         tables = self._query.query(flux, org=self._org)
         for table in tables:
             for record in table.records:
