@@ -27,17 +27,6 @@ def run_membrane_loop(
     - rows: BCM pins for row outputs (len=4)
     - cols: BCM pins for col inputs (len=4)
     """
-
-    if simulated:
-        while not stop_event.is_set():
-            if random.random() < 0.1:
-                callback("6236")
-            else:
-                pin = "".join(str(random.randint(0, 9)) for _ in range(4))
-                callback(pin)
-            time.sleep(float(delay) + random.uniform(1.0, 2.0))
-        return
-
     try:
         import RPi.GPIO as GPIO
     except Exception as e:

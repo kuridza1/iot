@@ -47,7 +47,7 @@ export const PANES: PiPane[] = [
     id: 'PI3',
     label: 'PI3',
     color: '#9fd0fe',
-    pathD: 'M 150 120 L 150 350 L 35 345 L 35 620 L 420 635 L 420 575 L 400 575 L 400 340 L 470 340 L 470 100 Z',
+    pathD: 'M 150 120 L 150 345 L 35 345 L 35 620 L 307 620 L 307 565 L 380 565 L 380 340 L 470 340 L 470 100 Z',
     labelPos: { x: 255, y: 280 },
     grafana: { dashboardUrl: 'http://localhost:3000/d/PI3_UID/pi3', params: { kiosk: '1' } },
   },
