@@ -1,6 +1,8 @@
+# mqtt_commands.py
 from __future__ import annotations
 import json
 import paho.mqtt.client as mqtt
+from typing import Any, Dict, Optional
 
 
 class MqttCommandPublisher:
@@ -10,12 +12,18 @@ class MqttCommandPublisher:
         self._client.connect(broker, port, keepalive=60)
         self._client.loop_start()
 
-    def publish_alarm(self, device: str, active: bool, reason: str | None = None) -> None:
-        payload = {"cmd": "ALARM_SET", "value": bool(active)}
-        if reason:
-            payload["reason"] = str(reason)
+    def publish(self, device: str, cmd: str, value: Any = None, extra: Optional[Dict[str, Any]] = None) -> None:
+        payload: Dict[str, Any] = {"cmd": str(cmd)}
+        if value is not None:
+            payload["value"] = value
+        if extra:
+            payload.update(extra)
         topic = f"{self._topic_prefix}/{device}/cmd"
         self._client.publish(topic, json.dumps(payload), qos=1, retain=False)
+
+    def publish_alarm(self, device: str, active: bool, reason: str | None = None) -> None:
+        extra = {"reason": str(reason)} if reason else None
+        self.publish(device=device, cmd="ALARM_SET", value=bool(active), extra=extra)
 
     def stop(self) -> None:
         try:

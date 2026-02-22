@@ -1,0 +1,218 @@
+/* ── Shell ───────────────────────────────────────────────── */
+.status-shell {
+  --bg: #1a1c1e;
+  --surface: #242628;
+  --border: #3a3d40;
+  --key-bg: #2c2f32;
+  --key-shadow: #111315;
+  --text: #d4d8dc;
+  --muted: #6a7278;
+  --ok: #2ecc71;
+  --warn: #e8a020;
+  --err: #e74c3c;
+  --accent: #4a9eff;
+  --state-color: var(--muted);
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+
+  background: linear-gradient(160deg, #272b2f 0%, #1a1c1e 60%, #141618 100%);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-bottom-color: rgba(0,0,0,0.5);
+  border-right-color: rgba(0,0,0,0.4);
+  border-radius: 18px;
+  padding: 14px 16px 16px;
+  width: 220px;
+
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.08) inset,
+    0 -2px 0 rgba(0,0,0,0.5) inset,
+    4px 8px 24px rgba(0,0,0,0.7),
+    0 1px 0 rgba(255,255,255,0.12);
+
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  user-select: none;
+
+  transition: box-shadow 500ms;
+}
+
+/* State-driven shell glow */
+.status-shell.alarmed {
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.08) inset,
+    0 -2px 0 rgba(0,0,0,0.5) inset,
+    4px 8px 24px rgba(0,0,0,0.7),
+    0 0 20px rgba(231, 76, 60, 0.35);
+}
+
+.status-shell.armed {
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.08) inset,
+    0 -2px 0 rgba(0,0,0,0.5) inset,
+    4px 8px 24px rgba(0,0,0,0.7),
+    0 0 16px rgba(74, 158, 255, 0.25);
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-device {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3a3d40;
+  box-shadow: 0 0 4px #000;
+  transition: background 400ms, box-shadow 400ms;
+}
+.conn-dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+
+/* ── State badge ─────────────────────────────────────────── */
+.state-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+  color: var(--muted);
+  transition: color 400ms, background 400ms, box-shadow 400ms;
+}
+
+/* State colours */
+.state-badge.disarmed {
+  color: var(--ok);
+  background: rgba(46, 204, 113, 0.08);
+  border-color: rgba(46, 204, 113, 0.2);
+}
+.state-badge.armed {
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.08);
+  border-color: rgba(74, 158, 255, 0.2);
+}
+.state-badge.alarmed {
+  color: var(--err);
+  background: rgba(231, 76, 60, 0.12);
+  border-color: rgba(231, 76, 60, 0.3);
+}
+.state-badge.exit,
+.state-badge.entry {
+  color: var(--warn);
+  background: rgba(232, 160, 32, 0.08);
+  border-color: rgba(232, 160, 32, 0.2);
+}
+
+/* Alarm pulse */
+@keyframes alarm-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.state-badge.alarmed {
+  animation: alarm-pulse 1s ease-in-out infinite;
+}
+
+.state-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.state-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* ── Alarm reason ────────────────────────────────────────── */
+.alarm-reason {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--err);
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+/* ── Stats grid ──────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stat-cell {
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.stat-cell.wide {
+  grid-column: span 2;
+}
+
+.stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+.stat-val {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  transition: color 300ms;
+}
+
+.stat-val.active   { color: var(--err); }
+.stat-val.inactive { color: var(--ok); }
+.stat-val.unknown  { color: var(--muted); }
+
+/* People display */
+.stat-val.people {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.people-icon {
+  font-size: 10px;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.people-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-left: auto;
+}

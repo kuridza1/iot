@@ -1,4 +1,3 @@
-# pi1/main.py
 import threading
 import time
 import statistics
@@ -18,85 +17,11 @@ from security.config import load_alarm_pin, load_alarm_params
 from helper.emit import make_emitter
 
 from pi1.loops import start_ds1_loop, start_pir_loop, start_dus_loop, start_dms_loop
+from pi1.cmd_listener import PiCmdListener
 
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
-
-
-def print_menu() -> None:
-    print("\n==== PI1 SMART DOOR ====")
-    print("1) Status")
-    print("2) Toggle Door Light (DL)")
-    print("3) Toggle Buzzer (DB)")
-    print("4) Beep (DB)")
-    print("5) Toggle Door Button (DS1)")
-    print("6) Enter PIN (CMD)")
-    print("0) Exit")
-
-
-def run_cli(
-    stop_event: threading.Event,
-    alarm: AlarmController,
-    led: Led,
-    buzzer: Buzzer,
-    button: Button,
-    led_cfg: Dict[str, Any],
-    buz_cfg: Dict[str, Any],
-    btn_cfg: Dict[str, Any],
-    safe_print,
-    emit,
-    set_suppress,
-) -> None:
-    print_menu()
-
-    while not stop_event.is_set():
-        raw = input("> ").strip()
-
-        if raw == "1":
-            safe_print(f"Alarm state: {alarm.state.value}")
-            safe_print(f"Buzzer (DB): {'ON' if buzzer.isOn() else 'OFF'}")
-            emit("security", "ALARM_STATE", alarm.state.value, None, True)
-            emit("actuator", "DB", buzzer.isOn(), None, bool(buz_cfg.get("simulated", True)))
-        elif raw == "2":
-            if led.isOn():
-                led.off()
-                emit("actuator", "DL", False, None, bool(led_cfg.get("simulated", True)))
-            else:
-                led.on()
-                emit("actuator", "DL", True, None, bool(led_cfg.get("simulated", True)))
-
-        elif raw == "3":
-            if buzzer.isOn():
-                buzzer.off()
-                emit("actuator", "DB", False, None, bool(buz_cfg.get("simulated", True)))
-            else:
-                buzzer.on()
-                emit("actuator", "DB", True, None, bool(buz_cfg.get("simulated", True)))
-
-        elif raw == "4":
-            buzzer.beep(1)
-            emit("actuator", "DB_BEEP", 1.0, "sec", bool(buz_cfg.get("simulated", True)))
-
-        elif raw == "5":
-            # Simulation: toggle DS1 raw level via Button
-            if button.isOn():
-                button.off()
-                emit("actuator", "DS1_SIM_RAW", False, None, bool(btn_cfg.get("simulated", True)))
-            else:
-                button.on()
-                emit("actuator", "DS1_SIM_RAW", True, None, bool(btn_cfg.get("simulated", True)))
-
-        elif raw == "6":
-            set_suppress(True)
-            try:
-                entered = input("PIN (4 digits): ").strip()
-            finally:
-                set_suppress(False)
-            alarm.submit_pin(entered, source="CMD")
-
-        elif raw == "0":
-            stop_event.set()
 
 
 def main() -> None:
@@ -125,13 +50,10 @@ def main() -> None:
     pin = load_alarm_pin(cfg)
     exit_delay, entry_delay, door_held = load_alarm_params(cfg)
 
-    # Explicit close: only makes sense when DS1 is simulated (you can still call it safely)
     def close_doors():
-        # Force DS1 "closed" in simulation
         if bool(btn_cfg.get("simulated", True)):
             if button.isOn():
                 button.off()
-            # Emit semantic "closed" event for dashboards
             emit("security", "DOOR_FORCE_CLOSED", "DS1", None, True)
 
     alarm = AlarmController(
@@ -140,8 +62,38 @@ def main() -> None:
         pin=pin,
         exit_delay_sec=exit_delay,
         entry_delay_sec=entry_delay,
-        close_doors_cb=close_doors,  # <-- NEW
+        close_doors_cb=close_doors,
     )
+
+    # Emit init state odmah
+    emit("security", "ALARM_STATE", alarm.state.value, None, True)
+    emit("actuator", "DB", buzzer.isOn(), None, bool(buz_cfg.get("simulated", True)))
+
+    # ----- MQTT command listener (front -> server -> mqtt -> pi) -----
+    mqtt_cfg = cfg.get("mqtt", {})
+    broker = str(mqtt_cfg.get("broker", "localhost"))
+    port = int(mqtt_cfg.get("port", 1883))
+
+    # mora da se poklopi sa server MQTT_TOPIC_PREFIX
+    topic_prefix = str(mqtt_cfg.get("topic_prefix", "devices"))
+
+    cmd_listener = PiCmdListener(
+        broker=broker,
+        port=port,
+        client_id=f"{pi_id}-cmd-listener",
+        topic_prefix=topic_prefix,
+        device=pi_id,
+        alarm=alarm,
+        led=led,
+        buzzer=buzzer,
+        button=button,
+        emit=emit,
+        stop_event=stop_event,
+        led_simulated=bool(led_cfg.get("simulated", True)),
+        buz_simulated=bool(buz_cfg.get("simulated", True)),
+        btn_simulated=bool(btn_cfg.get("simulated", True)),
+    )
+    cmd_listener.start()
 
     # ---------- DUS window + people count ----------
     state_lock = threading.Lock()
@@ -261,24 +213,12 @@ def main() -> None:
     threads.append(start_dus_loop(cfg.get("DUS1", {"delay_sec": 2.0, "simulated": True}), on_dus1, stop_event))
     threads.append(start_dms_loop(cfg.get("DMS", {}), on_dms_pin, stop_event))
 
-    emit("security", "ALARM_STATE", alarm.state.value, None, True)
-
     try:
-        run_cli(
-            stop_event=stop_event,
-            alarm=alarm,
-            led=led,
-            buzzer=buzzer,
-            button=button,
-            led_cfg=led_cfg,
-            buz_cfg=buz_cfg,
-            btn_cfg=btn_cfg,
-            safe_print=safe_print,
-            emit=emit,
-            set_suppress=set_suppress,
-        )
+        while not stop_event.is_set():
+            time.sleep(1)
     finally:
         stop_event.set()
+        cmd_listener.stop()
         publisher.stop()
         GPIO.cleanup()
 

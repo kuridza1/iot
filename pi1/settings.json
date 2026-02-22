@@ -14,8 +14,8 @@
     "client_id": "pi1-smartdoor",
     "qos": 1,
     "retain": false,
-    "batch_size": 10,
-    "flush_interval_sec": 5
+    "batch_size": 1,
+    "flush_interval_sec": 0.2
   },
 
   "DL":  { "simulated": true, "pin": 21, "active_high": true },

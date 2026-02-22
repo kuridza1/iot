@@ -1,0 +1,68 @@
+<div class="status-shell" [class]="'status-shell ' + stateClass">
+
+  <!-- Header -->
+  <div class="status-header">
+    <span class="conn-dot" [class.on]="connected" title="{{ connected ? 'Live' : 'Reconnecting…' }}"></span>
+  </div>
+
+  <!-- Big state badge -->
+  <div class="state-badge" [class]="'state-badge ' + stateClass">
+    <!-- Icon per state -->
+    <svg *ngIf="stateClass === 'disarmed'" class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+      <path d="M9 12l2 2 4-4"/>
+    </svg>
+    <svg *ngIf="stateClass === 'armed'" class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+    </svg>
+    <svg *ngIf="stateClass === 'alarmed'" class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <svg *ngIf="stateClass === 'exit' || stateClass === 'entry'" class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <svg *ngIf="stateClass === 'unknown'" class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+
+    <span class="state-text">{{ mappedState }}</span>
+  </div>
+
+  <!-- Alarm reason (visible only when alarmed) -->
+  <div class="alarm-reason" *ngIf="alarmActive && alarmReason">
+    ⚠ {{ alarmReason }}
+  </div>
+
+  <!-- Stats grid -->
+  <div class="stats-grid">
+
+    <div class="stat-cell">
+      <div class="stat-label">ALARM</div>
+      <div class="stat-val" [class.active]="alarmActive" [class.inactive]="!alarmActive">
+        {{ alarmActive ? 'ON' : 'OFF' }}
+      </div>
+    </div>
+
+    <div class="stat-cell">
+      <div class="stat-label">BUZZER</div>
+      <div class="stat-val" [class.active]="dbOn === true" [class.inactive]="dbOn === false" [class.unknown]="dbOn === null">
+        {{ dbOn === null ? '—' : (dbOn ? 'ON' : 'OFF') }}
+      </div>
+    </div>
+
+    <div class="stat-cell wide">
+      <div class="stat-label">PEOPLE INSIDE</div>
+      <div class="stat-val people">
+        <span class="people-icon" *ngFor="let p of getPeopleArray()">▮</span>
+        <span class="people-count">{{ peopleInside }}</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
