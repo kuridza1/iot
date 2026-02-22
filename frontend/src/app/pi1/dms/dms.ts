@@ -9,7 +9,7 @@ type PinResult = { ok: boolean; error?: string };
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './dms.html',
-  styleUrls: ['./dms.css'],
+  styleUrls: ['./dms.css', '../../../widget-frame.css'],
 })
 export class Dms implements OnDestroy {
   @Input({ required: true }) apiBase = 'http://localhost:5000';

@@ -15,7 +15,7 @@ type Snapshot = {
   imports: [CommonModule],
   standalone: true,
   templateUrl: './security-status.html',
-  styleUrls: ['./security-status.css'],
+  styleUrls: ['./security-status.css', '../../../widget-frame.css'],
 })
 export class SecurityStatus implements OnInit, OnDestroy {
   @Input({ required: true }) apiBase = 'http://localhost:5000';

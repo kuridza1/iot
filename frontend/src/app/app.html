@@ -1,4 +1,6 @@
 <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:10px; align-items:start;">
+
+  <!-- Floorplan -->
   <div>
     <app-floorplan
       [(selectedPi)]="selectedPi"
@@ -6,27 +8,29 @@
     ></app-floorplan>
   </div>
 
-    <div style="margin-top:16px;">
-       
-      <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
-    </div>
-    <div style="display:flex; gap:16px; align-items: center;">
-      <app-dms
-        [apiBase]="apiBase"
-        [device]="selectedPi"
-      ></app-dms>
+  <!-- Grafana -->
+  <div style="margin-top:16px;">
+    <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
+  </div>
 
-      <app-security-status
-          [apiBase]="apiBase"
-          [device]="selectedPi"
-        ></app-security-status>
+  <!-- PI1 specifični uređaji — nestaju kad se selektuje drugi PI -->
+  <div *ngIf="selectedPi === 'PI1'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
 
-        <app-ds1
-          [apiBase]="apiBase"
-          [device]="selectedPi"
-        ></app-ds1>
+    <app-dms
+      [apiBase]="apiBase"
+      [device]="selectedPi"
+    ></app-dms>
 
+    <app-security-status
+      [apiBase]="apiBase"
+      [device]="selectedPi"
+    ></app-security-status>
 
-    </div>
+    <app-ds1
+      [apiBase]="apiBase"
+      [device]="selectedPi"
+    ></app-ds1>
+
+  </div>
 
 </div>

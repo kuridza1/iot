@@ -8,7 +8,7 @@ type CmdResult = { ok: boolean; error?: string };
   standalone: true,
   imports: [CommonModule],
   templateUrl: './ds1.html',
-  styleUrls: ['./ds1.css'],
+  styleUrls: ['./ds1.css', '../../../widget-frame.css'],
 })
 export class Ds1 implements OnDestroy {
   @Input({ required: true }) apiBase = 'http://localhost:5000';

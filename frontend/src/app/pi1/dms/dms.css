@@ -1,40 +1,47 @@
-/* ── Shell ───────────────────────────────────────────────── */
+/* ── Shell — matches .plan-frame aesthetic ───────────────── */
 .keypad-shell {
-  --bg: #1a1c1e;
-  --surface: #242628;
-  --border: #3a3d40;
-  --key-bg: #2c2f32;
-  --key-border: #454a4f;
-  --key-top: #35393d;
-  --key-shadow: #111315;
-  --text: #d4d8dc;
-  --accent: #4a9eff;
-  --ok: #2ecc71;
-  --err: #e74c3c;
-  --dot-empty: #3a3d40;
+  --key-bg:     #2a2420;
+  --key-border: #4a3d30;
+  --key-top:    #332b22;
+  --key-shadow: #0a0806;
+  --text:       #d4cfc9;
+  --accent:     #4a9eff;
+  --ok:         #2ecc71;
+  --err:        #e74c3c;
+  --dot-empty:  #3a3028;
 
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
 
-  background:
-    linear-gradient(160deg, #272b2f 0%, #1a1c1e 60%, #141618 100%);
-  border: 1px solid rgba(255,255,255,0.35);
-  border-bottom-color: rgba(0,0,0,0.5);
-  border-right-color: rgba(0,0,0,0.4);
-  border-radius: 18px;
-  padding: 18px 20px 22px;
+  background: linear-gradient(160deg, #1e1a16 0%, #12100e 60%, #0e0c0a 100%);
+
+  border: 12px solid #966e52;
+  outline: 3px solid #704934;
+  outline-offset: -5px;
+  border-radius: 28px;
+  padding: 16px 18px 20px;
   width: 220px;
 
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.08) inset,
-    0 -2px 0 rgba(0,0,0,0.5) inset,
-    4px 8px 24px rgba(0,0,0,0.7),
-    0 1px 0 rgba(255,255,255,0.12);
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
 
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   user-select: none;
+  overflow: hidden;
+  position: relative;
+}
+
+.keypad-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 2px #352219;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* ── Header ──────────────────────────────────────────────── */
@@ -51,35 +58,29 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #6a7278;
+  color: #7a6a58;
 }
 
 .keypad-status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #3a3d40;
+  background: #3a3028;
   box-shadow: 0 0 4px #000;
   transition: background 300ms, box-shadow 300ms;
 }
-.keypad-status-dot.ok {
-  background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-}
-.keypad-status-dot.err {
-  background: var(--err);
-  box-shadow: 0 0 8px var(--err);
-}
+.keypad-status-dot.ok  { background: var(--ok);  box-shadow: 0 0 8px var(--ok); }
+.keypad-status-dot.err { background: var(--err); box-shadow: 0 0 8px var(--err); }
 
 /* ── PIN dot display ─────────────────────────────────────── */
 .pin-display {
   display: flex;
   gap: 14px;
   padding: 10px 16px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.7);
 }
 
 .pin-dot {
@@ -91,25 +92,11 @@
   transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.pin-dot.filled {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.pin-dot.ok     { background: var(--ok);     border-color: var(--ok);     box-shadow: 0 0 8px var(--ok); }
+.pin-dot.err    { background: var(--err);    border-color: var(--err);    box-shadow: 0 0 8px var(--err); }
 
-.pin-dot.ok {
-  background: var(--ok);
-  border-color: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-}
-
-.pin-dot.err {
-  background: var(--err);
-  border-color: var(--err);
-  box-shadow: 0 0 8px var(--err);
-}
-
-/* ── Shake animation ─────────────────────────────────────── */
+/* ── Shake ───────────────────────────────────────────────── */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   15%       { transform: translateX(-5px); }
@@ -119,10 +106,7 @@
   75%       { transform: translateX(-2px); }
   90%       { transform: translateX(2px); }
 }
-
-.pin-display.shake {
-  animation: shake 0.55s ease;
-}
+.pin-display.shake { animation: shake 0.55s ease; }
 
 /* ── Status message ──────────────────────────────────────── */
 .status-msg {
@@ -133,7 +117,6 @@
   color: transparent;
   transition: color 200ms;
 }
-
 .status-msg.ok  { color: var(--ok); }
 .status-msg.err { color: var(--err); }
 
@@ -144,11 +127,7 @@
   gap: 8px;
   transition: opacity 200ms;
 }
-
-.numpad.busy {
-  opacity: 0.45;
-  pointer-events: none;
-}
+.numpad.busy { opacity: 0.45; pointer-events: none; }
 
 /* ── Key ─────────────────────────────────────────────────── */
 .key {
@@ -157,49 +136,23 @@
   border-radius: 9px;
   border: 1px solid var(--key-border);
   border-bottom-color: var(--key-shadow);
-
-  background:
-    linear-gradient(180deg, var(--key-top) 0%, var(--key-bg) 100%);
-
+  background: linear-gradient(180deg, var(--key-top) 0%, var(--key-bg) 100%);
   box-shadow:
     0 3px 0 var(--key-shadow),
-    0 1px 0 rgba(255,255,255,0.07) inset,
-    0 -1px 0 rgba(0,0,0,0.4) inset;
-
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 -1px 0 rgba(0,0,0,0.5) inset;
   color: var(--text);
   font-family: inherit;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0;
   cursor: pointer;
   transition: transform 80ms, box-shadow 80ms, background 80ms;
 }
-
-.key:hover:not(:disabled) {
-  background: linear-gradient(180deg, #3e4347 0%, #333639 100%);
-}
-
+.key:hover:not(:disabled) { background: linear-gradient(180deg, #3d3028 0%, #2e261e 100%); }
 .key:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow:
-    0 1px 0 var(--key-shadow),
-    0 1px 0 rgba(255,255,255,0.05) inset;
+  box-shadow: 0 1px 0 var(--key-shadow), 0 1px 0 rgba(255,255,255,0.04) inset;
 }
-
-.key:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Special keys */
-.clear-key {
-  color: #e07b4a;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.back-key {
-  color: #8ab4e0;
-  font-size: 18px;
-}
+.key:disabled { opacity: 0.4; cursor: not-allowed; }
+.clear-key { color: #c87a50; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+.back-key  { color: #8ab4e0; font-size: 18px; }

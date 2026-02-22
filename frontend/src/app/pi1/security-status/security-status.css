@@ -1,58 +1,60 @@
-/* ── Shell ───────────────────────────────────────────────── */
+/* ── Shell — matches .plan-frame aesthetic ───────────────── */
 .status-shell {
-  --bg: #1a1c1e;
-  --surface: #242628;
-  --border: #3a3d40;
-  --key-bg: #2c2f32;
-  --key-shadow: #111315;
-  --text: #d4d8dc;
-  --muted: #6a7278;
-  --ok: #2ecc71;
-  --warn: #e8a020;
-  --err: #e74c3c;
-  --accent: #4a9eff;
-  --state-color: var(--muted);
+  --ok:      #2ecc71;
+  --warn:    #e8a020;
+  --err:     #e74c3c;
+  --accent:  #4a9eff;
+  --neutral: #6a5a48;
+  --text:    #d4cfc9;
+  --muted:   #7a6a58;
 
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
 
-  background: linear-gradient(160deg, #272b2f 0%, #1a1c1e 60%, #141618 100%);
-  border: 1px solid rgba(255,255,255,0.35);
-  border-bottom-color: rgba(0,0,0,0.5);
-  border-right-color: rgba(0,0,0,0.4);
-  border-radius: 18px;
+  background: linear-gradient(160deg, #1e1a16 0%, #12100e 60%, #0e0c0a 100%);
+
+  border: 12px solid #966e52;
+  outline: 3px solid #704934;
+  outline-offset: -5px;
+  border-radius: 28px;
   padding: 14px 16px 16px;
   width: 220px;
 
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.08) inset,
-    0 -2px 0 rgba(0,0,0,0.5) inset,
-    4px 8px 24px rgba(0,0,0,0.7),
-    0 1px 0 rgba(255,255,255,0.12);
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
 
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   user-select: none;
-
+  overflow: hidden;
+  position: relative;
   transition: box-shadow 500ms;
 }
 
-/* State-driven shell glow */
-.status-shell.alarmed {
-  box-shadow:
-    0 2px 0 rgba(255,255,255,0.08) inset,
-    0 -2px 0 rgba(0,0,0,0.5) inset,
-    4px 8px 24px rgba(0,0,0,0.7),
-    0 0 20px rgba(231, 76, 60, 0.35);
+.status-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 2px #352219;
+  pointer-events: none;
+  z-index: 10;
 }
 
+/* State-driven outer glow — supplements the walnut box-shadow */
+.status-shell.alarmed {
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65),
+    0 0 24px rgba(231,76,60,0.4);
+}
 .status-shell.armed {
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.08) inset,
-    0 -2px 0 rgba(0,0,0,0.5) inset,
-    4px 8px 24px rgba(0,0,0,0.7),
-    0 0 16px rgba(74, 158, 255, 0.25);
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65),
+    0 0 18px rgba(74,158,255,0.3);
 }
 
 /* ── Header ──────────────────────────────────────────────── */
@@ -74,14 +76,11 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #3a3d40;
+  background: #3a3028;
   box-shadow: 0 0 4px #000;
   transition: background 400ms, box-shadow 400ms;
 }
-.conn-dot.on {
-  background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-}
+.conn-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 
 /* ── State badge ─────────────────────────────────────────── */
 .state-badge {
@@ -91,50 +90,26 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 11px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
   color: var(--muted);
-  transition: color 400ms, background 400ms, box-shadow 400ms;
+  transition: color 400ms, background 400ms;
 }
 
-/* State colours */
-.state-badge.disarmed {
-  color: var(--ok);
-  background: rgba(46, 204, 113, 0.08);
-  border-color: rgba(46, 204, 113, 0.2);
-}
-.state-badge.armed {
-  color: var(--accent);
-  background: rgba(74, 158, 255, 0.08);
-  border-color: rgba(74, 158, 255, 0.2);
-}
-.state-badge.alarmed {
-  color: var(--err);
-  background: rgba(231, 76, 60, 0.12);
-  border-color: rgba(231, 76, 60, 0.3);
-}
+.state-badge.disarmed { color: var(--ok);     background: rgba(46,204,113,0.08);  border-color: rgba(46,204,113,0.2); }
+.state-badge.armed    { color: var(--accent); background: rgba(74,158,255,0.08);  border-color: rgba(74,158,255,0.2); }
+.state-badge.alarmed  { color: var(--err);    background: rgba(231,76,60,0.12);   border-color: rgba(231,76,60,0.3); }
 .state-badge.exit,
-.state-badge.entry {
-  color: var(--warn);
-  background: rgba(232, 160, 32, 0.08);
-  border-color: rgba(232, 160, 32, 0.2);
-}
+.state-badge.entry    { color: var(--warn);   background: rgba(232,160,32,0.08);  border-color: rgba(232,160,32,0.2); }
 
-/* Alarm pulse */
 @keyframes alarm-pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
 }
-.state-badge.alarmed {
-  animation: alarm-pulse 1s ease-in-out infinite;
-}
+.state-badge.alarmed { animation: alarm-pulse 1s ease-in-out infinite; }
 
-.state-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
+.state-icon { width: 18px; height: 18px; flex-shrink: 0; }
 
 .state-text {
   font-size: 13px;
@@ -151,8 +126,8 @@
   text-align: center;
   padding: 4px 8px;
   border-radius: 6px;
-  background: rgba(231, 76, 60, 0.1);
-  border: 1px solid rgba(231, 76, 60, 0.2);
+  background: rgba(231,76,60,0.1);
+  border: 1px solid rgba(231,76,60,0.2);
 }
 
 /* ── Stats grid ──────────────────────────────────────────── */
@@ -163,19 +138,16 @@
 }
 
 .stat-cell {
-  background: rgba(0,0,0,0.28);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.04);
   border-radius: 9px;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
 }
-
-.stat-cell.wide {
-  grid-column: span 2;
-}
+.stat-cell.wide { grid-column: span 2; }
 
 .stat-label {
   font-size: 9px;
@@ -191,28 +163,10 @@
   color: var(--muted);
   transition: color 300ms;
 }
-
 .stat-val.active   { color: var(--err); }
 .stat-val.inactive { color: var(--ok); }
 .stat-val.unknown  { color: var(--muted); }
 
-/* People display */
-.stat-val.people {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.people-icon {
-  font-size: 10px;
-  color: var(--accent);
-  opacity: 0.85;
-}
-
-.people-count {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin-left: auto;
-}
+.stat-val.people { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.people-icon  { font-size: 10px; color: var(--accent); opacity: 0.85; }
+.people-count { font-size: 14px; font-weight: 700; color: var(--text); margin-left: auto; }

@@ -1,40 +1,44 @@
-/* ── Shell ───────────────────────────────────────────────── */
+/* ── Shell — matches .plan-frame aesthetic ───────────────── */
 .lock-shell {
-  --bg: #1a1c1e;
-  --surface: #242628;
-  --border: #3a3d40;
-  --key-bg: #2c2f32;
-  --key-border: #454a4f;
-  --key-top: #35393d;
-  --key-shadow: #111315;
-  --text: #d4d8dc;
-  --ok: #2ecc71;
-  --warn: #e8a020;
-  --err: #e74c3c;
-  --neutral: #5a6068;
-  --lock-color: #4a9eff;
+  --ok:      #2ecc71;
+  --warn:    #e8a020;
+  --err:     #e74c3c;
+  --neutral: #6a5a48;
+  --text:    #d4cfc9;
 
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
 
-  background: linear-gradient(160deg, #272b2f 0%, #1a1c1e 60%, #141618 100%);
-  border: 1px solid rgba(255,255,255,0.35);
-  border-bottom-color: rgba(0,0,0,0.5);
-  border-right-color: rgba(0,0,0,0.4);
-  border-radius: 18px;
-  padding: 16px 20px 18px;
+  background: linear-gradient(160deg, #1e1a16 0%, #12100e 60%, #0e0c0a 100%);
+
+  border: 12px solid #966e52;
+  outline: 3px solid #704934;
+  outline-offset: -5px;
+  border-radius: 28px;
+  padding: 14px 18px 18px;
   width: 180px;
 
   box-shadow:
-    0 2px 0 rgba(255,255,255,0.08) inset,
-    0 -2px 0 rgba(0,0,0,0.5) inset,
-    4px 8px 24px rgba(0,0,0,0.7),
-    0 1px 0 rgba(255,255,255,0.12);
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
 
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   user-select: none;
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow 500ms;
+}
+
+.lock-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 2px #352219;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* ── Header ──────────────────────────────────────────────── */
@@ -51,7 +55,7 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #6a7278;
+  color: #7a6a58;
 }
 
 .lock-status-dot {
@@ -62,14 +66,8 @@
   box-shadow: 0 0 4px #000;
   transition: background 400ms, box-shadow 400ms;
 }
-.lock-status-dot.locked {
-  background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
-}
-.lock-status-dot.unlocked {
-  background: var(--warn);
-  box-shadow: 0 0 8px var(--warn);
-}
+.lock-status-dot.locked   { background: var(--ok);   box-shadow: 0 0 8px var(--ok); }
+.lock-status-dot.unlocked { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
 
 /* ── Lock Icon ───────────────────────────────────────────── */
 .lock-icon-wrap {
@@ -82,7 +80,6 @@
   transition: filter 300ms;
 }
 
-/* Shackle (the arc on top) */
 .shackle {
   width: 28px;
   height: 20px;
@@ -99,30 +96,25 @@
   z-index: 2;
 }
 
-/* Unlocked: shackle swings to the right */
 .lock-icon-wrap.is-unlocked .shackle {
   transform: rotate(40deg) translateX(4px);
   border-color: var(--warn);
   margin-left: 14px;
 }
-
 .lock-icon-wrap.is-locked .shackle {
   border-color: var(--ok);
   transform: none;
   margin-left: 0;
 }
 
-/* Lock body */
 .lock-body {
   width: 44px;
   height: 34px;
   border-radius: 8px;
-  background: linear-gradient(180deg, #35393d 0%, #272a2d 100%);
+  background: linear-gradient(180deg, #2e2720 0%, #1e1a14 100%);
   border: 2px solid var(--neutral);
-  border-top: 2px solid var(--key-border);
-  box-shadow:
-    0 3px 0 var(--key-shadow),
-    inset 0 1px 0 rgba(255,255,255,0.07);
+  border-top: 2px solid #4a3d30;
+  box-shadow: 0 3px 0 #0a0806, inset 0 1px 0 rgba(255,255,255,0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,50 +122,19 @@
   z-index: 1;
   transition: border-color 400ms;
 }
+.lock-icon-wrap.is-locked   .lock-body { border-color: var(--ok); }
+.lock-icon-wrap.is-unlocked .lock-body { border-color: var(--warn); }
 
-.lock-icon-wrap.is-locked .lock-body {
-  border-color: var(--ok);
-}
+.keyhole { display: flex; flex-direction: column; align-items: center; gap: 0; opacity: 0.6; }
+.keyhole-circle { width: 8px; height: 8px; border-radius: 50%; background: #0a0806; border: 1.5px solid rgba(255,255,255,0.1); }
+.keyhole-slot   { width: 4px; height: 7px; background: #0a0806; border-radius: 0 0 2px 2px; margin-top: -2px; }
 
-.lock-icon-wrap.is-unlocked .lock-body {
-  border-color: var(--warn);
-}
-
-/* Keyhole */
-.keyhole {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  opacity: 0.6;
-}
-
-.keyhole-circle {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--key-shadow);
-  border: 1.5px solid rgba(255,255,255,0.15);
-}
-
-.keyhole-slot {
-  width: 4px;
-  height: 7px;
-  background: var(--key-shadow);
-  border-radius: 0 0 2px 2px;
-  margin-top: -2px;
-}
-
-/* Pulse glow when animating */
 @keyframes lock-pulse {
   0%   { filter: drop-shadow(0 0 0px transparent); }
-  50%  { filter: drop-shadow(0 0 10px var(--lock-color)); }
+  50%  { filter: drop-shadow(0 0 10px rgba(74,158,255,0.8)); }
   100% { filter: drop-shadow(0 0 0px transparent); }
 }
-
-.lock-icon-wrap.animating {
-  animation: lock-pulse 0.5s ease;
-}
+.lock-icon-wrap.animating { animation: lock-pulse 0.5s ease; }
 
 /* ── State label ─────────────────────────────────────────── */
 .state-label {
@@ -183,16 +144,11 @@
   color: var(--neutral);
   transition: color 300ms;
 }
-
 .state-label.ok   { color: var(--ok); }
 .state-label.warn { color: var(--warn); }
 
 /* ── Buttons ─────────────────────────────────────────────── */
-.lock-btns {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-}
+.lock-btns { display: flex; gap: 8px; width: 100%; }
 
 .btn {
   flex: 1;
@@ -200,18 +156,15 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-
   height: 36px;
   border-radius: 9px;
-  border: 1px solid var(--key-border);
-  border-bottom-color: var(--key-shadow);
-
-  background: linear-gradient(180deg, var(--key-top) 0%, var(--key-bg) 100%);
+  border: 1px solid #4a3d30;
+  border-bottom-color: #0a0806;
+  background: linear-gradient(180deg, #332b22 0%, #2a2420 100%);
   box-shadow:
-    0 3px 0 var(--key-shadow),
-    0 1px 0 rgba(255,255,255,0.07) inset,
-    0 -1px 0 rgba(0,0,0,0.4) inset;
-
+    0 3px 0 #0a0806,
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 -1px 0 rgba(0,0,0,0.5) inset;
   color: var(--text);
   font-family: inherit;
   font-size: 11px;
@@ -221,23 +174,12 @@
   cursor: pointer;
   transition: transform 80ms, box-shadow 80ms, opacity 200ms;
 }
-
-.btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #3e4347 0%, #333639 100%);
-}
-
+.btn:hover:not(:disabled) { background: linear-gradient(180deg, #3d3028 0%, #2e261e 100%); }
 .btn:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow:
-    0 1px 0 var(--key-shadow),
-    0 1px 0 rgba(255,255,255,0.05) inset;
+  box-shadow: 0 1px 0 #0a0806, 0 1px 0 rgba(255,255,255,0.04) inset;
 }
-
-.btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .btn-lock   { color: #7ed4a0; }
 .btn-unlock { color: #f0b96e; }
 
@@ -250,6 +192,5 @@
   color: transparent;
   transition: color 200ms;
 }
-
 .status-msg.ok  { color: var(--ok); }
 .status-msg.err { color: var(--err); }

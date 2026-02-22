@@ -1,0 +1,47 @@
+/*
+  widget-frame.css
+  Import this in each component's styleUrls BEFORE the component's own CSS,
+  or add it to angular.json styles[] so it's globally available.
+
+  Matches the .plan-frame aesthetic:
+    - warm walnut border (#966e52 / #704934)
+    - dark inner with inset shadow
+    - heavy outer drop shadow
+*/
+
+:root {
+  --wf-border-color:   #966e52;
+  --wf-border-outline: #704934;
+  --wf-inner-bg:       #12100e;
+  --wf-surface:        #1a1714;
+  --wf-surface2:       #221e1a;
+  --wf-border-px:      12px;
+  --wf-radius:         28px;
+  --wf-radius-inner:   18px;
+  --wf-text:           #d4cfc9;
+  --wf-muted:          #6a6058;
+  --wf-accent:         #4a9eff;
+  --wf-ok:             #2ecc71;
+  --wf-warn:           #e8a020;
+  --wf-err:            #e74c3c;
+}
+
+/* The shared outer shell applied to each widget's host element */
+.widget-frame {
+  border: var(--wf-border-px) solid var(--wf-border-color);
+  outline: 3px solid var(--wf-border-outline);
+  outline-offset: -5px;
+  border-radius: var(--wf-radius);
+
+  background: var(--wf-inner-bg);
+
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
+
+  overflow: hidden;
+  position: relative;
+
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  color: var(--wf-text);
+}
