@@ -189,7 +189,11 @@ def cmd():
         ws_emit_cmd_result(device or "?", cmd_name or "?", False, "missing device/cmd")
         return jsonify({"error": "missing device/cmd"}), 400
 
-    allowed = {"PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1"}
+    allowed = {
+        "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
+        "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
+        "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR",
+    }
     if cmd_name not in allowed:
         ws_emit_cmd_result(device, cmd_name, False, "cmd not allowed")
         return jsonify({"error": "cmd not allowed"}), 400

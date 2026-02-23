@@ -6,12 +6,14 @@ import { GrafanaEmbedComponent } from './grafana-embed/grafana-embed.component';
 import { Ds1 } from './pi1/ds1/ds1';
 import { Dms } from './pi1/dms/dms';
 import { SecurityStatus } from './pi1/security-status/security-status';
+import { LcdComponent } from './pi3/lcd/lcd.component';
+import { BrgbComponent } from './pi3/brgb/brgb.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
-  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, SecurityStatus],
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, SecurityStatus, LcdComponent, BrgbComponent],
 })
 export class App {
   selectedPi: PiId = 'PI1';

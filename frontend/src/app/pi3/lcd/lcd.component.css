@@ -1,0 +1,87 @@
+.lcd {
+  width: 240px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: #141110;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  font-family: 'JetBrains Mono','Fira Code','Courier New',monospace;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #d4cfc9;
+}
+
+.dots { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+}
+.dot.conn.on { background: #2ecc71; box-shadow: 0 0 8px rgba(46,204,113,0.9); }
+.dot.state.on  { background: #2ecc71; }
+.dot.state.off { background: #e8a020; }
+
+.screen {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  min-height: 54px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+}
+
+.line {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #9cc9ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+button {
+  flex: 1;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: #d4cfc9;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.msg {
+  height: 14px;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: transparent;
+}
+.msg.ok  { color: #2ecc71; }
+.msg.err { color: #e74c3c; }
