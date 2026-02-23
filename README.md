@@ -2,23 +2,24 @@
 
 ## 1) Pokretanje na Raspberry Pi
 
-ssh korisnik@hostname (hostname ce nam dati)
-
+ssh student@192.168.107.14X
 mkdir -p ~/tojest
-
 exit
 
-scp -r ./iot(ili pi1)/* korisnik@hostname:/home/korisnik/tojest/
+// idi u iot folder
+scp -r ./pi1-2-3 korisnik@hostname:/home/korisnik/tojest/
+scp -r ./helper korisnik@hostname:/home/korisnik/tojest/
+scp -r ./actuators korisnik@hostname:/home/korisnik/tojest/
+scp -r ./sensors korisnik@hostname:/home/korisnik/tojest/
+scp -r ./security korisnik@hostname:/home/korisnik/tojest/
+scp -r ./mqtt korisnik@hostname:/home/korisnik/tojest/
 
-ssh korisnik@hostname
-
+ssh student@192.163.107.14X
 cd ~/tojest
 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-python3 device/main.py
+py -m pi1.main
+py -m pi2.main
+py -m pi3.main
 
 // za izlazak
 sudo shutdown -h now
@@ -79,18 +80,6 @@ docker ps
 
 ---
 
-## 5) Grafana (automatski)
-
-1. Otvori http://localhost:3000
-2. Login:
-   - admin / admin (ili vrednosti iz .env)
-3. Otvori dashboard: PI1 Smart Door
-
-Ako dashboard nije učitan:
-docker compose restart grafana
-
----
-
 ## 6) Pokretanje server aplikacije
 
 cd server  
@@ -98,34 +87,4 @@ python app.py
 
 ---
 
-## 7) Pokretanje device aplikacije (Raspberry Pi)
 
-1. SSH:
-   ssh pi@<PI_IP>
-2. Install:
-   cd device  
-3. Proveri settings.json:
-   - mqtt.host = IP adresa servera
-   - mqtt.port = 1883
-4. Start:
-   python main.py
-
----
-
-## 8) Tipičan redosled pokretanja
-
-1. infra: docker compose up -d
-2. server: python app.py
-3. device: python main.py
-4. Grafana: dashboard live
-
----
-
-## 9) Brzi troubleshooting
-
-- Grafana prazan dashboard:
-  - proveri Last 15m i auto refresh 5s
-- Nema podataka u Influx:
-  - proveri server log i token
-- MQTT ne radi:
-  - device ne sme koristiti localhost

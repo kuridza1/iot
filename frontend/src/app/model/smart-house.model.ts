@@ -33,16 +33,31 @@ export const PANES: PiPane[] = [
     color: '#ffbf58',
     pathD: 'M 152 620 L 308 620 L 308 565 L 380 565 L 380 702 L 152 702 Z',
     labelPos: { x: 340, y: 650 },
-    grafana: { dashboardUrl: 'http://localhost:3000/d/PI1_UID/pi1', params: { kiosk: '1' } },
-  },
+    grafana: {
+      dashboardUrl: 'http://localhost:3000/d/ffbvsb4945u68b/p1-device',
+      params: {
+        kiosk: '1',
+        from: 'now-15m',
+        to: 'now',
+        refresh: '5s'
+        }
+      }  
+      },
   {
     id: 'PI2',
     label: 'PI2',
     color: '#58ff68',
     pathD: 'M 342 50 L 340 345 L 293 345 L 293 565 L 380 565 L 380 705 L 400 705 L 418 750 L 448 765 L 482 765 L 510 750 L 530 707 L 548 705 L 548 50 Z',
     labelPos: { x: 410, y: 500 },
-    grafana: { dashboardUrl: 'http://localhost:3000/d/PI2_UID/pi2', params: { kiosk: '1' } },
-  },
+    grafana: { dashboardUrl: 'http://localhost:3000/d/adjcczn/pi2', 
+          params: {
+            kiosk: '1',
+            from: 'now-15m',
+            to: 'now',
+            refresh: '5s'
+            }
+        },
+    },
   {
     id: 'PI3',
     label: 'PI3',

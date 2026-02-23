@@ -12,21 +12,16 @@ import { PANES, PiId } from '../model/smart-house.model';
 })
 export class FloorplanComponent {
   panes = PANES;
-
+  apiBase = 'http://localhost:5000';
   // [(selectedPi)]
   @Input() selectedPi: PiId = 'PI1';
   @Output() selectedPiChange = new EventEmitter<PiId>();
 
-  @Output() selectedPiChange = new EventEmitter<PiId | null>();
-  @Output() selectedElementChange = new EventEmitter<string | null>();
-  apiBase = 'http://localhost:5000';
-  get selectedElements() {
-    if (!this.selectedPi) return [];
-    return ELEMENTS.filter(e => e.pi === this.selectedPi);
-  }
-
-  selectPi(ev: MouseEvent, id: PiId) {
-    ev.stopPropagation();
+  // HTML calls selectPi($event, pane.id)
+  selectPi(ev: Event, id: PiId): void {
+    ev?.preventDefault?.();
+    ev?.stopPropagation?.();
+    this.selectedPi = id;
     this.selectedPiChange.emit(id);
   }
 }

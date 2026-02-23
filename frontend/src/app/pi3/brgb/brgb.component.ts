@@ -21,7 +21,7 @@ type CmdResult = {
   standalone: true,
   imports: [CommonModule, HttpClientModule],
   templateUrl: './brgb.component.html',
-  styleUrl: './brgb.component.css',
+  styleUrls: ['./brgb.component.css', '../../../widget-frame.css'],
 })
 export class BrgbComponent implements OnInit, OnDestroy {
   @Input() apiBase = 'http://localhost:5000';

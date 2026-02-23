@@ -12,7 +12,7 @@
   },
   "mqtt": {
     "enabled": true,
-    "broker": "localhost",
+    "broker": "192.168.1.14",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi3-smartrooms",

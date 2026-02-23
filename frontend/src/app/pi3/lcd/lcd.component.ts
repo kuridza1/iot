@@ -21,7 +21,7 @@ type CmdResult = {
   standalone: true,
   imports: [CommonModule, HttpClientModule],
   templateUrl: './lcd.component.html',
-  styleUrl: './lcd.component.css',
+  styleUrls: ['./lcd.component.css', '../../../widget-frame.css'],
 })
 export class LcdComponent implements OnInit, OnDestroy {
   @Input() apiBase = 'http://localhost:5000';

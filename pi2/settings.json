@@ -3,12 +3,12 @@
     "pi_id": "PI2",
     "device_name": "Smart garage",
     "location": "Garage",
-    "default_simulated": true
+    "default_simulated": false
   },
 
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.107.132",
+    "broker": "192.168.1.14",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi2-smart-garage",
