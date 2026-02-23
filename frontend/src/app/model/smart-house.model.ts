@@ -49,7 +49,14 @@ export const PANES: PiPane[] = [
     color: '#58ff68',
     pathD: 'M 470 25 L 470 340 L 400 340 L 400 575 L 525 575 L 525 725 L 555 725 L 580 770 L 620 788 L 670 788 L 715 771 L 742 725 L 765 725 L 765 25',
     labelPos: { x: 720, y: 410 },
-    grafana: { dashboardUrl: 'http://localhost:3000/d/PI2_UID/pi2', params: { kiosk: '1' } },
+    grafana: { dashboardUrl: 'http://localhost:3000/d/adjcczn/pi2', 
+      params: {
+        kiosk: '1',
+        from: 'now-15m',
+        to: 'now',
+        refresh: '5s'
+        }
+    },
   },
   {
     id: 'PI3',

@@ -8,6 +8,7 @@ from typing import Any, Dict
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+import requests
 from influx_writer import InfluxWriter
 from influx_reader import InfluxReader
 from mqtt_to_influx import MqttToInfluxService
@@ -180,6 +181,16 @@ def alarm_pin():
 
     return jsonify({"ok": ok})
 
+CAMERA_URL = "http://PI1_IP:8080/?action=stream"
+
+@app.route("/camera/pi1")
+def camera_pi1():
+    r = requests.get(CAMERA_URL, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers["Content-Type"]
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

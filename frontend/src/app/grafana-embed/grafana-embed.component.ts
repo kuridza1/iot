@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-grafana-embed',
   template: `
-    <div *ngIf="safeUrl; else empty">
+    <div *ngIf="safeUrl; else empty" class="widget-frame">
       <iframe
         [src]="safeUrl"
         width="100%"
@@ -13,10 +13,12 @@ import { CommonModule } from '@angular/common';
         frameborder="0"
       ></iframe>
     </div>
+
     <ng-template #empty>
       <div>No dashboard selected.</div>
     </ng-template>
   `,
+  styleUrls: ['../../widget-frame.css'],
   imports: [CommonModule]
 })
 export class GrafanaEmbedComponent {
@@ -25,6 +27,8 @@ export class GrafanaEmbedComponent {
   constructor(private sanitizer: DomSanitizer) {}
 
   @Input() set url(v: string | null) {
-    this.safeUrl = v ? this.sanitizer.bypassSecurityTrustResourceUrl(v) : null;
+    this.safeUrl = v
+      ? this.sanitizer.bypassSecurityTrustResourceUrl(v)
+      : null;
   }
 }

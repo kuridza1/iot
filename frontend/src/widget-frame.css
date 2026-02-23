@@ -9,22 +9,6 @@
     - heavy outer drop shadow
 */
 
-:root {
-  --wf-border-color:   #966e52;
-  --wf-border-outline: #704934;
-  --wf-inner-bg:       #12100e;
-  --wf-surface:        #1a1714;
-  --wf-surface2:       #221e1a;
-  --wf-border-px:      12px;
-  --wf-radius:         28px;
-  --wf-radius-inner:   18px;
-  --wf-text:           #d4cfc9;
-  --wf-muted:          #6a6058;
-  --wf-accent:         #4a9eff;
-  --wf-ok:             #2ecc71;
-  --wf-warn:           #e8a020;
-  --wf-err:            #e74c3c;
-}
 
 /* The shared outer shell applied to each widget's host element */
 .widget-frame {
