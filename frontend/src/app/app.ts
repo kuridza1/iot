@@ -6,6 +6,8 @@ import { GrafanaEmbedComponent } from './grafana-embed/grafana-embed.component';
 import { Ds1 } from './pi1/ds1/ds1';
 import { Dms } from './pi1/dms/dms';
 import { SecurityStatus } from './pi1/security-status/security-status';
+import { Dl } from './pi1/dl/dl';
+import { WebCam } from './pi1/web-cam/web-cam';
 import { LcdComponent } from './pi3/lcd/lcd.component';
 import { BrgbComponent } from './pi3/brgb/brgb.component';
 
@@ -13,7 +15,7 @@ import { BrgbComponent } from './pi3/brgb/brgb.component';
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
-  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, SecurityStatus, LcdComponent, BrgbComponent],
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, WebCam, SecurityStatus, LcdComponent, BrgbComponent],
 })
 export class App {
   selectedPi: PiId = 'PI1';

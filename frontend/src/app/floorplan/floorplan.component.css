@@ -7,6 +7,7 @@
 .plan-frame {
   width: 598px;
   height: 490px;
+  position: relative;
   border-radius: 55px;
   border: 15px solid #966e52;
   outline: 4px solid #704934;
@@ -26,16 +27,19 @@
   border-radius: 40px;
   outline: 4px solid #352219;
   outline-offset: -4px;
-  z-index: -1;
+  z-index: 1;
 }
 
 
-
+app-dl, .bulb{
+  z-index: 20;
+}
 .overlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 0;
   pointer-events: none; /* we enable pointer events on panes only */
 }
 
@@ -90,6 +94,7 @@ g:hover > .pane-label {
   padding: 6px 10px;
   font-size: 12px;
   cursor: pointer;
+  z-index: 10;
   border: 1px solid rgba(255,255,255,0.35);
   background: rgba(0,0,0,0.55);
   color: #fff;

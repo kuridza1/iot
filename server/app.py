@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+import requests
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
 from influx_writer import InfluxWriter
@@ -226,6 +227,16 @@ def alarm_pin():
     ws_emit_snapshot(device)
     return jsonify({"ok": ok})
 
+CAMERA_URL = "http://PI1_IP:8080/?action=stream"
+
+@app.route("/camera/pi1")
+def camera_pi1():
+    r = requests.get(CAMERA_URL, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers["Content-Type"]
+    )
 
 # legacy SSE stub (optional)
 @app.get("/events")
