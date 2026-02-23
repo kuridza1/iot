@@ -31,16 +31,4 @@
       </text>
     </g>
   </svg>
-
-  <button
-    *ngFor="let e of selectedElements"
-    class="hotspot el"
-    [style.left.%]="e.xPct"
-    [style.top.%]="e.yPct"
-    (click)="selectElement($event, e.id)"
-    [class.selected]="selectedElement === e.id"
-    [attr.title]="e.label"
-  >
-    {{ e.id }}
-  </button>
 </div>

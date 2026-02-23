@@ -173,7 +173,7 @@ def main() -> None:
             hval = latest[name]["h"]
 
         text = render_screen(name, tval, hval)
-
+        emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
         if lcd_enabled:
             lcd.show(text)
 
@@ -200,6 +200,10 @@ def main() -> None:
 
             if lcd_enabled:
                 lcd.show(render_screen(name, tval, hval))
+                text = render_screen(name, tval, hval)
+                if lcd_enabled:
+                    lcd.show(text)
+                emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
 
             time.sleep(rotate_period)
 
@@ -291,6 +295,7 @@ def main() -> None:
                 lcd_enabled = not lcd_enabled
                 if not lcd_enabled:
                     lcd.show("")  # blank
+                    
                 else:
                     refresh_lcd_once()
                 emit("actuator", "LCD_ENABLED", lcd_enabled, None, bool(lcd_cfg.get("simulated", default_simulated)))

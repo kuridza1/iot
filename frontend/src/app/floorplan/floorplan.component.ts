@@ -1,10 +1,11 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { ELEMENTS, PANES, PiId } from '../model/smart-house.model';
 import { CommonModule } from '@angular/common';
 import { Dl } from '../pi1/dl/dl';
+import { PANES, PiId } from '../model/smart-house.model';
 
 @Component({
   selector: 'app-floorplan',
+  standalone: true,
   templateUrl: './floorplan.component.html',
   styleUrls: ['./floorplan.component.css'],
   imports: [CommonModule, Dl]
@@ -12,8 +13,9 @@ import { Dl } from '../pi1/dl/dl';
 export class FloorplanComponent {
   panes = PANES;
 
-  @Input() selectedPi: PiId | null = null;
-  @Input() selectedElement: string | null = null;
+  // [(selectedPi)]
+  @Input() selectedPi: PiId = 'PI1';
+  @Output() selectedPiChange = new EventEmitter<PiId>();
 
   @Output() selectedPiChange = new EventEmitter<PiId | null>();
   @Output() selectedElementChange = new EventEmitter<string | null>();
@@ -26,11 +28,5 @@ export class FloorplanComponent {
   selectPi(ev: MouseEvent, id: PiId) {
     ev.stopPropagation();
     this.selectedPiChange.emit(id);
-    this.selectedElementChange.emit(null);
-  }
-
-  selectElement(ev: MouseEvent, elementId: string) {
-    ev.stopPropagation();
-    this.selectedElementChange.emit(elementId);
   }
 }

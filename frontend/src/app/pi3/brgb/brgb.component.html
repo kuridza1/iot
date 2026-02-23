@@ -1,0 +1,23 @@
+<div class="brgb">
+  <div class="top">
+    <div class="title">BRGB</div>
+    <div class="dots">
+      <span class="dot conn" [class.on]="connected" title="{{ connected ? 'Live' : 'Reconnecting…' }}"></span>
+      <span class="dot dirty" [class.on]="dirty" title="Pending changes"></span>
+    </div>
+  </div>
+
+  <div class="lights" [class.busy]="busy">
+    <button class="lamp r" [class.on]="r" (click)="toggle('r')" [disabled]="busy" aria-label="Toggle red"></button>
+    <button class="lamp g" [class.on]="g" (click)="toggle('g')" [disabled]="busy" aria-label="Toggle green"></button>
+    <button class="lamp b" [class.on]="b" (click)="toggle('b')" [disabled]="busy" aria-label="Toggle blue"></button>
+  </div>
+
+  <button class="apply" (click)="apply()" [disabled]="busy || !dirty">Apply</button>
+
+  <div class="msg" [class.ok]="lastOk === true" [class.err]="lastOk === false">
+    <ng-container *ngIf="lastOk === true">✓ applied</ng-container>
+    <ng-container *ngIf="lastOk === false">✗ {{ lastError || 'failed' }}</ng-container>
+    <ng-container *ngIf="lastOk === null">&nbsp;</ng-container>
+  </div>
+</div>

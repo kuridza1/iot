@@ -1,25 +1,33 @@
+# server.py
 from __future__ import annotations
 
-import json
-import queue
-import threading
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import requests
+from flask_socketio import SocketIO, emit, join_room, leave_room
+
 from influx_writer import InfluxWriter
 from influx_reader import InfluxReader
 from mqtt_to_influx import MqttToInfluxService
 from mqtt_commands import MqttCommandPublisher
 from alarm_service import AlarmService
 from config import (
-    INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN, INFLUX_URL,
-    MQTT_CLIENT_ID, MQTT_BROKER, MQTT_PORT, MQTT_TOPIC_FILTER,
-    MQTT_TOPIC_PREFIX, ALARM_PIN
+    INFLUX_BUCKET,
+    INFLUX_ORG,
+    INFLUX_TOKEN,
+    INFLUX_URL,
+    MQTT_CLIENT_ID,
+    MQTT_BROKER,
+    MQTT_PORT,
+    MQTT_TOPIC_FILTER,
+    MQTT_TOPIC_PREFIX,
+    ALARM_PIN,
 )
 
+# -------------------- Flask + CORS --------------------
 app = Flask(__name__)
 CORS(
     app,
@@ -27,23 +35,17 @@ CORS(
     supports_credentials=False,
 )
 
-subscribers_lock = threading.Lock()
-subscribers: set["queue.Queue[Dict[str, Any]]"] = set()
+# -------------------- Socket.IO --------------------
+# IMPORTANT:
+# - Threading mode is the most robust with your current codebase (threads + blocking MQTT/IO).
+# - Install: pip install flask-socketio
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=["http://localhost:4200"],
+    async_mode="threading",
+)
 
-def push_event(evt: Dict[str, Any]) -> None:
-    evt = dict(evt)
-    evt.setdefault("ts", time.time())
-
-    with subscribers_lock:
-        subs = list(subscribers)
-
-    for q in subs:
-        try:
-            q.put_nowait(evt)
-        except Exception:
-            pass
-
-
+# -------------------- Core services --------------------
 influx = InfluxWriter(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 reader = InfluxReader(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 
@@ -56,12 +58,65 @@ cmd_pub = MqttCommandPublisher(
 
 alarm = AlarmService(influx=influx, cmd=cmd_pub, alarm_pin=ALARM_PIN)
 
+# -------------------- Helpers --------------------
+def _now_ts() -> float:
+    return time.time()
 
+
+def _snapshot_with_device(device: str) -> Dict[str, Any]:
+    d = str(device).strip()
+    snap = alarm.snapshot(d)
+    if not isinstance(snap, dict):
+        snap = {"data": snap}
+    snap = dict(snap)
+    snap["device"] = d
+    return snap
+
+
+def ws_emit_evt(evt: Dict[str, Any]) -> None:
+    evt = dict(evt)
+    evt.setdefault("ts", _now_ts())
+    device = str(evt.get("device", "")).strip()
+    if not device:
+        return
+    socketio.emit("evt", evt, room=device)
+
+
+def ws_emit_snapshot(device: str) -> None:
+    device = str(device).strip()
+    if not device:
+        return
+    socketio.emit("snapshot", _snapshot_with_device(device), room=device)
+
+
+def ws_emit_pin_result(device: str, ok: bool, error: Optional[str] = None) -> None:
+    device = str(device).strip()
+    msg: Dict[str, Any] = {"device": device, "ok": bool(ok), "ts": _now_ts()}
+    if error:
+        msg["error"] = error
+    socketio.emit("pin_result", msg, room=device)
+
+
+def ws_emit_cmd_result(
+    device: str,
+    cmd: str,
+    ok: bool,
+    error: Optional[str] = None,
+    value: Any = None,
+) -> None:
+    device = str(device).strip()
+    msg: Dict[str, Any] = {"device": device, "cmd": str(cmd), "ok": bool(ok), "ts": _now_ts()}
+    if error:
+        msg["error"] = error
+    if value is not None:
+        msg["value"] = value
+    socketio.emit("cmd_result", msg, room=device)
+
+
+# -------------------- MQTT -> server callback --------------------
 def on_event(payload: Dict[str, Any]) -> None:
-    # 1) server logika + cache state-a
     alarm.on_event(payload)
-    # 2) live ka UI (SSE)
-    push_event(payload)
+    ws_emit_evt(payload)
 
 
 bridge = MqttToInfluxService(
@@ -74,7 +129,34 @@ bridge = MqttToInfluxService(
 )
 bridge.start()
 
+# -------------------- Socket.IO events --------------------
+@socketio.on("connect")
+def on_connect():
+    device = str(request.args.get("device", "")).strip()
+    if device:
+        join_room(device)
+        emit("snapshot", _snapshot_with_device(device))
 
+
+@socketio.on("set_device")
+def on_set_device(data):
+    data = data or {}
+    device = str(data.get("device", "PI1")).strip()
+
+    # leave previous device rooms (keep sid)
+    try:
+        rooms = list(getattr(request, "rooms", []))
+        for r in rooms:
+            if r and r != request.sid:
+                leave_room(r)
+    except Exception:
+        pass
+
+    join_room(device)
+    emit("snapshot", _snapshot_with_device(device))
+
+
+# -------------------- HTTP routes --------------------
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -83,51 +165,7 @@ def health():
 @app.get("/state")
 def state():
     device = request.args.get("device", "PI1")
-    return jsonify(alarm.snapshot(device))
-
-
-@app.get("/events")
-def events():
-    device = request.args.get("device", "PI1")
-
-    client_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1000)
-
-    with subscribers_lock:
-        subscribers.add(client_q)
-
-    def gen():
-        try:
-            # inicijalni snapshot
-            yield f"event: snapshot\ndata: {json.dumps(alarm.snapshot(device))}\n\n"
-
-            last_ping = time.time()
-
-            while True:
-                try:
-                    evt = client_q.get(timeout=1.0)
-                except queue.Empty:
-                    if time.time() - last_ping > 15.0:
-                        yield "event: ping\ndata: {}\n\n"
-                        last_ping = time.time()
-                    continue
-
-                if str(evt.get("device", "")) != str(device):
-                    continue
-
-                yield f"event: evt\ndata: {json.dumps(evt)}\n\n"
-        finally:
-            with subscribers_lock:
-                subscribers.discard(client_q)
-
-    return Response(
-        gen(),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return jsonify(_snapshot_with_device(device))
 
 
 @app.get("/telemetry/latest")
@@ -149,36 +187,44 @@ def cmd():
     value = data.get("value", None)
 
     if not device or not cmd_name:
+        ws_emit_cmd_result(device or "?", cmd_name or "?", False, "missing device/cmd")
         return jsonify({"error": "missing device/cmd"}), 400
 
     allowed = {
-        "PIN_SUBMIT",
-        "DL",
-        "DB",
-        "ALARM_SET",
-        "DS1",
+        "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
+        "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
+        "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR",
     }
     if cmd_name not in allowed:
+        ws_emit_cmd_result(device, cmd_name, False, "cmd not allowed")
         return jsonify({"error": "cmd not allowed"}), 400
 
     cmd_pub.publish(device=device, cmd=cmd_name, value=value)
+    ws_emit_cmd_result(device, cmd_name, True, None, value=value)
+
     return jsonify({"ok": True})
 
 
 @app.post("/alarm/pin")
 def alarm_pin():
     data = request.get_json(silent=True) or {}
-    device = str(data.get("device", "PI1"))
+    device = str(data.get("device", "PI1")).strip()
     pin = str(data.get("pin", "")).strip()
     device_name = str(data.get("device_name", device))
 
     if len(pin) != 4 or not pin.isdigit():
+        ws_emit_pin_result(device, False, "PIN must be 4 digits")
         return jsonify({"ok": False, "error": "PIN must be 4 digits"}), 400
 
     ok = alarm.submit_pin(device=device, device_name=device_name, pin=pin, source="FE")
-
     cmd_pub.publish(device=device, cmd="PIN_SUBMIT", value=pin)
 
+    if ok:
+        ws_emit_pin_result(device, True, None)
+    else:
+        ws_emit_pin_result(device, False, "PIN rejected")
+
+    ws_emit_snapshot(device)
     return jsonify({"ok": ok})
 
 CAMERA_URL = "http://PI1_IP:8080/?action=stream"
@@ -192,5 +238,16 @@ def camera_pi1():
         content_type=r.headers["Content-Type"]
     )
 
+# legacy SSE stub (optional)
+@app.get("/events")
+def events():
+    return Response(
+        "event: ping\ndata: {}\n\n",
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    # With async_mode="threading" this runs on Werkzeug (fine for local dev).
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)

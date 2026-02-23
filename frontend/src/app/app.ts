@@ -8,20 +8,20 @@ import { Dms } from './pi1/dms/dms';
 import { SecurityStatus } from './pi1/security-status/security-status';
 import { Dl } from './pi1/dl/dl';
 import { WebCam } from './pi1/web-cam/web-cam';
+import { LcdComponent } from './pi3/lcd/lcd.component';
+import { BrgbComponent } from './pi3/brgb/brgb.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
-  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, WebCam, SecurityStatus],
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1, Dms, WebCam, SecurityStatus, LcdComponent, BrgbComponent],
 })
 export class App {
   selectedPi: PiId = 'PI1';
-  selectedElement: string | null = null;
   apiBase = 'http://localhost:5000';
 
   get grafanaUrl(): string | null {
-    if (!this.selectedPi) return null;
     const pane = PANES.find(p => p.id === this.selectedPi);
     if (!pane) return null;
 
