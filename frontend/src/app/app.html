@@ -2,10 +2,7 @@
 
   <!-- Floorplan -->
   <div>
-    <app-floorplan
-      [(selectedPi)]="selectedPi"
-      [(selectedElement)]="selectedElement"
-    ></app-floorplan>
+    <app-floorplan [(selectedPi)]="selectedPi"></app-floorplan>
   </div>
 
   <!-- Grafana -->
@@ -13,24 +10,11 @@
     <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
   </div>
 
-  <!-- PI1 specifični uređaji — nestaju kad se selektuje drugi PI -->
+  <!-- PI1 widgets -->
   <div *ngIf="selectedPi === 'PI1'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
-
-    <app-dms
-      [apiBase]="apiBase"
-      [device]="selectedPi"
-    ></app-dms>
-
-    <app-security-status
-      [apiBase]="apiBase"
-      [device]="selectedPi"
-    ></app-security-status>
-
-    <app-ds1
-      [apiBase]="apiBase"
-      [device]="selectedPi"
-    ></app-ds1>
-
+    <app-dms [apiBase]="apiBase" device="PI1"></app-dms>
+    <app-security-status [apiBase]="apiBase" device="PI1"></app-security-status>
+    <app-ds1 [apiBase]="apiBase" device="PI1"></app-ds1>
   </div>
 
 </div>

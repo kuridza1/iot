@@ -15,11 +15,9 @@ import { SecurityStatus } from './pi1/security-status/security-status';
 })
 export class App {
   selectedPi: PiId = 'PI1';
-  selectedElement: string | null = null;
   apiBase = 'http://localhost:5000';
 
   get grafanaUrl(): string | null {
-    if (!this.selectedPi) return null;
     const pane = PANES.find(p => p.id === this.selectedPi);
     if (!pane) return null;
 

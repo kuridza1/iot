@@ -1,7 +1,8 @@
 <div class="plan">
-    <div class="plan-frame">
-        <img class="plan-img" src="house-plan.png" />
-    </div>
+  <div class="plan-frame">
+    <img class="plan-img" src="house-plan.png" />
+  </div>
+
   <svg class="overlay" viewBox="0 0 1000 800" preserveAspectRatio="none">
     <g *ngFor="let pane of panes">
       <path
@@ -22,16 +23,4 @@
       </text>
     </g>
   </svg>
-
-  <button
-    *ngFor="let e of selectedElements"
-    class="hotspot el"
-    [style.left.%]="e.xPct"
-    [style.top.%]="e.yPct"
-    (click)="selectElement($event, e.id)"
-    [class.selected]="selectedElement === e.id"
-    [attr.title]="e.label"
-  >
-    {{ e.id }}
-  </button>
 </div>
