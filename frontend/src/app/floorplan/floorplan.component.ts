@@ -1,12 +1,13 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { ELEMENTS, PANES, PiId } from '../model/smart-house.model';
 import { CommonModule } from '@angular/common';
+import { Dl } from '../pi1/dl/dl';
 
 @Component({
   selector: 'app-floorplan',
   templateUrl: './floorplan.component.html',
   styleUrls: ['./floorplan.component.css'],
-  imports: [CommonModule]
+  imports: [CommonModule, Dl]
 })
 export class FloorplanComponent {
   panes = PANES;
@@ -16,7 +17,7 @@ export class FloorplanComponent {
 
   @Output() selectedPiChange = new EventEmitter<PiId | null>();
   @Output() selectedElementChange = new EventEmitter<string | null>();
-
+  apiBase = 'http://localhost:5000';
   get selectedElements() {
     if (!this.selectedPi) return [];
     return ELEMENTS.filter(e => e.pi === this.selectedPi);
