@@ -8,7 +8,7 @@
 
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.1.14",
+    "broker": "192.168.107.132",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi1-smartdoor",
@@ -24,7 +24,7 @@
 
   "DPIR1": {
     "delay_sec": 1.5,
-    "simulated": true,
+    "simulated": false,
     "pin": 17,
     "pull": "down",
     "active_high": true
@@ -39,8 +39,8 @@
 
   "DMS": {
     "delay_sec": 0.05,
-    "simulated": true,
-    "rows": [6, 13, 19, 26],
+    "simulated": false,
+    "rows": [25, 8, 7, 1],
     "cols": [12, 16, 20, 21]
   },
   "ALARM": { "pin": "6236" }

@@ -12,7 +12,7 @@
   },
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.1.14",
+    "broker": "192.168.107.132",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi3-smartrooms",
@@ -24,27 +24,27 @@
 
   "DPIR3": {
     "delay_sec": 1.5,
-    "simulated": true,
+    "simulated": false,
     "pin": 17,
     "pull": "down",
     "active_high": true
   },
 
-  "DHT1": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 22.5, "hum_pct_start": 45.0 },
+  "DHT1": { "delay_sec": 3.0, "simulated": false, "temp_c_start": 22.5, "hum_pct_start": 45.0 },
   "DHT2": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 21.0, "hum_pct_start": 48.0 },
 
   "IR": { "delay_sec": 0.25, "simulated": true, "burst_prob": 0.06 },
 
   "BRGB": {
     "simulated": true,
-    "pin_r": 17,
-    "pin_g": 27,
-    "pin_b": 22,
+    "pin_r": 12,
+    "pin_g": 13,
+    "pin_b": 19,
     "active_high": true
   },
 
   "LCD": {
-    "simulated": false,
+    "simulated": true,
     "address": 39,
     "auto_rotate": true,
     "rotate_period_sec": 2.5

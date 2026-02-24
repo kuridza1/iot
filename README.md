@@ -2,19 +2,19 @@
 
 ## 1) Pokretanje na Raspberry Pi
 
-ssh student@192.168.107.14X
+ssh student@192.168.107.147
 mkdir -p ~/tojest
 exit
 
 // idi u iot folder
-scp -r ./pi1-2-3 korisnik@hostname:/home/korisnik/tojest/
-scp -r ./helper korisnik@hostname:/home/korisnik/tojest/
-scp -r ./actuators korisnik@hostname:/home/korisnik/tojest/
-scp -r ./sensors korisnik@hostname:/home/korisnik/tojest/
-scp -r ./security korisnik@hostname:/home/korisnik/tojest/
-scp -r ./mqtt korisnik@hostname:/home/korisnik/tojest/
+scp -r ./pi1 student@192.168.107.147:/home/student/tojest/
+scp -r ./helper student@192.168.107.147:/home/student/tojest/
+scp -r ./actuators student@192.168.107.147:/home/student/tojest/
+scp -r ./sensors student@192.168.107.147:/home/student/tojest/
+scp -r ./security student@192.168.107.147:/home/student/tojest/
+scp -r ./mqtt student@192.168.107.147:/home/student/tojest/
 
-ssh student@192.163.107.14X
+ssh student@192.168.107.147
 cd ~/tojest
 
 py -m pi1.main
@@ -24,6 +24,8 @@ py -m pi3.main
 // za izlazak
 sudo shutdown -h now
 
+KAMERA:
+mjpg_streamer -i "input_uvc.so" -o "output_http.so -p 8080 -w /usr/local/share/mjpg-streamer/www"
 
 ---
 
