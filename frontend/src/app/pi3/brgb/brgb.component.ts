@@ -1,27 +1,14 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { io, Socket } from 'socket.io-client';
-
-type EvtMsg = {
-  device?: string;
-  code?: string;
-  value?: any;
-};
-
-type CmdResult = {
-  device?: string;
-  cmd?: string;
-  ok?: boolean;
-  error?: string;
-};
+import { Component, Input, OnDestroy, OnInit, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Subscription } from 'rxjs';
+import { WsService } from '../../ws.service';
 
 @Component({
   selector: 'app-brgb',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule],
   templateUrl: './brgb.component.html',
-  styleUrls: ['./brgb.component.css', '../../../widget-frame.css'],
+  styleUrls: ['./brgb.component.css'],
 })
 export class BrgbComponent implements OnInit, OnDestroy {
   @Input() apiBase = 'http://localhost:5000';
@@ -30,13 +17,7 @@ export class BrgbComponent implements OnInit, OnDestroy {
   connected = false;
   busy = false;
 
-  // “live” state from telemetry
-  liveOn: boolean | null = null;
-  liveR = false;
-  liveG = false;
-  liveB = false;
-
-  // staged state (what user clicks)
+  // live state
   r = false;
   g = false;
   b = false;
@@ -44,109 +25,111 @@ export class BrgbComponent implements OnInit, OnDestroy {
   lastOk: boolean | null = null;
   lastError = '';
 
-  private sock?: Socket;
+  private sub = new Subscription();
+  private sendTimer: any = null;
+  private pending: { r: number; g: number; b: number } | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: object,
+    private ws: WsService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnInit(): void {
-    this.sock = io(this.apiBase, {
-      transports: ['websocket'],
-      query: { device: this.device },
-      reconnection: true,
-      reconnectionDelay: 400,
-      reconnectionDelayMax: 2500,
-    });
+    if (!isPlatformBrowser(this.platformId)) return;
 
-    this.sock.on('connect', () => (this.connected = true));
-    this.sock.on('disconnect', () => (this.connected = false));
+    // If you centrally manage WS in App, you can remove these two lines.
+    this.ws.ensureConnected(this.apiBase, this.device);
+    this.ws.setDevice(this.device);
 
-    this.sock.on('evt', (evt: EvtMsg) => this.applyEvt(evt));
-    this.sock.on('cmd_result', (msg: CmdResult) => this.applyCmdResult(msg));
+    this.sub.add(this.ws.connected.subscribe(v => {
+      this.connected = v;
+      this.cdr.detectChanges();
+    }));
+
+    this.sub.add(this.ws.evt.subscribe(evt => {
+      const code = String(evt?.code || '');
+      if (code !== 'BRGB' && code !== 'BRGB_SET') return;
+
+      const v = evt.value;
+      if (!v || typeof v !== 'object') return;
+
+      this.r = typeof v.r === 'boolean' ? v.r : !!v.r;
+      this.g = typeof v.g === 'boolean' ? v.g : !!v.g;
+      this.b = typeof v.b === 'boolean' ? v.b : !!v.b;
+      this.cdr.detectChanges();
+    }));
+
+    this.sub.add(this.ws.cmdResult.subscribe(msg => {
+      const cmd = String(msg?.cmd || '');
+      if (cmd !== 'BRGB_SET' && cmd !== 'PI3_BRGB_SET') return;
+
+      this.busy = false;
+      this.lastOk = !!msg.ok;
+      this.lastError = msg.error || '';
+      this.cdr.detectChanges();
+
+      window.setTimeout(() => {
+        this.lastOk = null;
+        this.lastError = '';
+        this.cdr.detectChanges();
+      }, 1200);
+    }));
   }
 
   ngOnDestroy(): void {
-    try {
-      this.sock?.disconnect();
-    } catch {}
-  }
-
-  private isMine(evtDevice: any): boolean {
-    return String(evtDevice || '').toUpperCase() === this.device.toUpperCase();
-  }
-
-  private applyEvt(evt: EvtMsg): void {
-    if (!evt || !this.isMine(evt.device)) return;
-    const code = String(evt.code || '');
-
-    if (code !== 'BRGB' && code !== 'BRGB_SET') return;
-
-    const v = evt.value;
-    if (!v || typeof v !== 'object') return;
-
-    // Support bool and 0/1
-    const r = typeof v.r === 'boolean' ? v.r : !!v.r;
-    const g = typeof v.g === 'boolean' ? v.g : !!v.g;
-    const b = typeof v.b === 'boolean' ? v.b : !!v.b;
-
-    this.liveR = r;
-    this.liveG = g;
-    this.liveB = b;
-
-    if (typeof v.on === 'boolean') this.liveOn = v.on;
-
-    // First time we get telemetry, sync staged values to live
-    if (this.lastOk === null && !this.busy) {
-      this.r = r;
-      this.g = g;
-      this.b = b;
+    this.sub.unsubscribe();
+    if (this.sendTimer) {
+      clearTimeout(this.sendTimer);
+      this.sendTimer = null;
     }
-  }
-
-  private applyCmdResult(msg: CmdResult): void {
-    if (!msg || !this.isMine(msg.device)) return;
-    const cmd = String(msg.cmd || '');
-    if (cmd !== 'PI3_BRGB_SET') return;
-
-    this.busy = false;
-    this.lastOk = !!msg.ok;
-    this.lastError = msg.error || '';
-
-    window.setTimeout(() => {
-      this.lastOk = null;
-      this.lastError = '';
-    }, 1500);
   }
 
   toggle(channel: 'r' | 'g' | 'b'): void {
     if (this.busy) return;
+
     if (channel === 'r') this.r = !this.r;
     if (channel === 'g') this.g = !this.g;
     if (channel === 'b') this.b = !this.b;
+
+    this.queueSend();
   }
 
-  apply(): void {
-    if (this.busy) return;
+  private queueSend(): void {
+    this.pending = { r: this.r ? 1 : 0, g: this.g ? 1 : 0, b: this.b ? 1 : 0 };
+
+    if (this.sendTimer) clearTimeout(this.sendTimer);
+    this.sendTimer = setTimeout(() => {
+      this.sendTimer = null;
+      void this.sendNow();
+    }, 120);
+  }
+
+  private async sendNow(): Promise<void> {
+    if (!this.pending) return;
+
+    const payload = this.pending;
+    this.pending = null;
 
     this.busy = true;
     this.lastOk = null;
     this.lastError = '';
+    this.cdr.detectChanges();
 
-    const url = `${this.apiBase.replace(/\/$/, '')}/cmd`;
-    const value = { r: this.r ? 1 : 0, g: this.g ? 1 : 0, b: this.b ? 1 : 0 };
-
-    this.http.post(url, { device: this.device, cmd: 'PI3_BRGB_SET', value }).subscribe({
-      next: () => {
-        // server will emit cmd_result; telemetry will update live state
-      },
-      error: (err) => {
-        this.busy = false;
-        this.lastOk = false;
-        this.lastError = err?.error?.error || 'Command failed';
-      },
-    });
-  }
-
-  get dirty(): boolean {
-    return this.r !== this.liveR || this.g !== this.liveG || this.b !== this.liveB;
+    try {
+      await this.ws.sendCmdHttp(this.device, 'BRGB_SET', payload);
+      // busy will be cleared by cmd_result; fallback:
+      window.setTimeout(() => {
+        if (this.busy) {
+          this.busy = false;
+          this.cdr.detectChanges();
+        }
+      }, 2000);
+    } catch (e: any) {
+      this.busy = false;
+      this.lastOk = false;
+      this.lastError = String(e?.message || e || 'failed');
+      this.cdr.detectChanges();
+    }
   }
 }
