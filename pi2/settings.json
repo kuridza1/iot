@@ -14,7 +14,7 @@
     "qos": 0,
     "retain": false,
     "batch_size": 1,
-    "flush_interval_sec": 0.2
+    "flush_interval_sec": 0.02
   },
 
   "DS2": {

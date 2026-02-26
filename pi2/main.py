@@ -1,86 +1,54 @@
+# pi2/main.py (aligned to PI1 main, with GSG magnitude + PI1 alarm trigger)
 from __future__ import annotations
 
+import json
 import threading
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-from actuators import button
+import paho.mqtt.client as mqtt
+
+from actuators import button as button_mod
 from actuators.button import Button
 from actuators.four_digit_timer import FourDigitTimer
 
-from mqtt.mqtt_publisher import MqttBatchPublisher
-from helper.telemetry import TelemetryEvent, now_ts
 from helper.helper import GPIO
+from helper.settings import load_settings
+from helper.emit import make_emitter
+from mqtt.mqtt_publisher import MqttBatchPublisher
 
-from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.pir import run_pir_loop
+from sensors.ultrasonic import run_ultrasonic_loop
 from sensors.gsg import run_gsg_loop
-from sensors.timer import run_timer_loop
 from sensors.dht import run_dht_loop
+from sensors.timer import run_timer_loop
 from sensors.btn import run_button_loop
 
-from helper.settings import load_settings
-
-# You said you added the command listener already
-# Expected signature:
-# run_cmd_listener(broker, port, client_id, topic_prefix, device, on_cmd, stop_event)
-from commands.pi2 import run_cmd_listener
+from pi2.cmd_listener import Pi2CmdListener
 
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
 
 
-def print_menu() -> None:
-    print("\n==== PI2 KITCHEN + DOOR ====")
-    print("1) Status")
-    print("2) Toggle Door Sensor (DS2)")
-    print("3) Toggle Kitchen Button (BTN)")
-    print("4) Timer set <sec> (4SD)")
-    print("5) Timer start/stop (4SD)")
-    print("6) Timer reset (4SD)")
-    print("0) Exit")
-
-
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("pi2/settings.json")
+    cfg = load_settings("pi2/settings.json")
+    stop_event = threading.Event()
 
     device_cfg = cfg.get("device", {})
     pi_id = str(device_cfg.get("pi_id", "PI2"))
     device_name = str(device_cfg.get("device_name", "Device"))
     default_simulated = bool(device_cfg.get("default_simulated", True))
 
-    mqtt_cfg = cfg.get("mqtt", {"enabled": False})
-    publisher = MqttBatchPublisher(mqtt_cfg)
+    # ----- MQTT publisher for telemetry/events (your existing pipeline) -----
+    publisher = MqttBatchPublisher(cfg.get("mqtt", {}))
     publisher.start()
 
-    stop_event = threading.Event()
-    threads: list[threading.Thread] = []
+    emit, safe_print, set_suppress = make_emitter(
+        publisher, device=pi_id, device_name=device_name, ts_str=ts_str
+    )
 
-    def emit(kind: str, code: str, value, unit: Optional[str], simulated: bool) -> None:
-        ev = TelemetryEvent(
-            device=pi_id,
-            device_name=device_name,
-            kind=kind,
-            code=code,
-            value=value,
-            unit=unit,
-            simulated=simulated,
-            ts=now_ts(),
-        )
-        publisher.enqueue(ev)
-        if kind == "actuator":
-            print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
-
-    def emit_timer_state(reason: str) -> None:
-        running, left = timer.status()
-        emit("actuator", "4SD", timer.render(), None, timer_sim)
-        emit("actuator", "4SD_REM", int(left), "sec", timer_sim)
-        emit("actuator", "4SD_RUN", bool(running), None, timer_sim)
-        emit("actuator", "4SD_STATE_REASON", str(reason), None, timer_sim)
-    # ----------------------------
-    # Components
-    # ----------------------------
+    # ----- components -----
     ds2_cfg = cfg.get("DS2", {"simulated": default_simulated, "pin": 23, "active_high": True})
     btn_cfg = cfg.get("BTN", {"simulated": default_simulated, "pin": 24, "active_high": True})
     timer_cfg = cfg.get("4SD", {"simulated": default_simulated})
@@ -89,55 +57,85 @@ def main() -> None:
     btn_sim = bool(btn_cfg.get("simulated", default_simulated))
     timer_sim = bool(timer_cfg.get("simulated", default_simulated))
 
-    ds2 = Button(
-        simulated=ds2_sim,
-        pin=int(ds2_cfg.get("pin", 23)),
-        active_high=bool(ds2_cfg.get("active_high", True)),
-    )
-
-    btn = Button(
-        simulated=btn_sim,
-        pin=int(btn_cfg.get("pin", 24)),
-        active_high=bool(btn_cfg.get("active_high", True)),
-    )
-
+    ds2 = Button(**ds2_cfg)
+    btn = Button(**btn_cfg)
     timer = FourDigitTimer(simulated=timer_sim)
-    emit_timer_state("BOOT")
-    emit("sensor", "BTN", bool(btn.isOn()), None, btn_sim)
-    btn_add_seconds: int = int(cfg.get("BTN_ADD_SECONDS", 5))
 
-    # ----------------------------
-    # Sensors loops (as you had)
-    # ----------------------------
-    dpir_cfg = cfg.get("DPIR2", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
+    # state: BTN adds N seconds (shared between loops and cmd listener)
+    btn_add_seconds_ref: Dict[str, Any] = {"value": int(cfg.get("BTN_ADD_SECONDS", 5))}
+
+    def emit_timer_state(reason: str) -> None:
+        running, left = timer.status()
+        blink = bool(getattr(timer, "is_blinking", lambda: False)())
+        emit("actuator", "4SD", timer.render(), None, timer_sim)
+        emit("actuator", "4SD_REM", int(left), "sec", timer_sim)
+        emit("actuator", "4SD_RUN", bool(running), None, timer_sim)
+        emit("actuator", "4SD_BLINK", bool(blink), None, timer_sim)
+        emit("actuator", "4SD_STATE_REASON", str(reason), None, timer_sim)
+
+    # emit init immediately
+    emit("sensor", "DS2", bool(ds2.isOn()), None, ds2_sim)
+    emit("sensor", "BTN", bool(btn.isOn()), None, btn_sim)
+    emit_timer_state("BOOT")
+    emit("actuator", "BTN_ADD_SEC", int(btn_add_seconds_ref["value"]), "sec", timer_sim)
+
+    # ----- MQTT command listener (front -> server -> mqtt -> pi2) -----
+    mqtt_cfg = cfg.get("mqtt", {})
+    broker = str(mqtt_cfg.get("broker", "localhost"))
+    port = int(mqtt_cfg.get("port", 1883))
+    topic_prefix = str(mqtt_cfg.get("topic_prefix", "devices")).rstrip("/")
+
+    cmd_listener = Pi2CmdListener(
+        broker=broker,
+        port=port,
+        client_id=f"{pi_id}-cmd-listener",
+        topic_prefix=topic_prefix,
+        device=pi_id,
+        timer=timer,
+        emit=emit,
+        stop_event=stop_event,
+        timer_simulated=timer_sim,
+        btn_add_seconds_ref=btn_add_seconds_ref,
+    )
+    cmd_listener.start()
+
+    # ----- PI2 -> PI1 alarm publisher (for GSG threshold) -----
+    alarm_pub = mqtt.Client(client_id=f"{pi_id}-alarm-pub", clean_session=True)
+    alarm_pub.connect(broker, port, keepalive=60)
+    alarm_pub.loop_start()
+
+    # ----- loops -----
+    threads: list[threading.Thread] = []
+
+    # PIR
+    dpir_cfg = cfg.get(
+        "DPIR2",
+        {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True},
+    )
     dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
-    dpir_pin = int(dpir_cfg.get("pin", 17))
-    dpir_pull = str(dpir_cfg.get("pull", "down"))
-    dpir_active_high = bool(dpir_cfg.get("active_high", True))
+
+    def on_pir(motion: bool) -> None:
+        emit("sensor", "DPIR2", bool(motion), None, dpir_sim)
 
     t = threading.Thread(
         target=run_pir_loop,
         args=(
             float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda motion: emit("sensor", "DPIR2", bool(motion), None, dpir_sim),
+            on_pir,
             stop_event,
             dpir_sim,
-            dpir_pin,
-            dpir_pull,
-            dpir_active_high,
+            int(dpir_cfg.get("pin", 17)),
+            str(dpir_cfg.get("pull", "down")),
+            bool(dpir_cfg.get("active_high", True)),
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
 
-    dus_cfg = cfg.get(
-        "DUS2",
-        {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6},
-    )
+    # Ultrasonic
+    dus_cfg = cfg.get("DUS2", {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6})
     dus_sim = bool(dus_cfg.get("simulated", default_simulated))
-    dus_trig = int(dus_cfg.get("trig_pin", 5))
-    dus_echo = int(dus_cfg.get("echo_pin", 6))
 
     t = threading.Thread(
         target=run_ultrasonic_loop,
@@ -146,24 +144,47 @@ def main() -> None:
             lambda d: emit("sensor", "DUS2", None if d is None else float(d), "cm", dus_sim),
             stop_event,
             dus_sim,
-            dus_trig,
-            dus_echo,
+            int(dus_cfg.get("trig_pin", 5)),
+            int(dus_cfg.get("echo_pin", 6)),
         ),
         daemon=True,
     )
     t.start()
     threads.append(t)
 
+    # GSG (movement + magnitude) + trigger PI1 alarm on threshold
     gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated, "threshold": 0.5})
     gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
+
+    alarm_cooldown_sec = float(gsg_cfg.get("alarm_cooldown_sec", 5.0))
+    last_alarm_ts = 0.0
+
+    def on_gsg(moving: bool, mag: float) -> None:
+        nonlocal last_alarm_ts
+
+        # UI/telemetry
+        emit("sensor", "GSG", bool(moving), None, gsg_sim)
+        emit("telemetry", "GSG_MAG", float(mag), None, gsg_sim)
+
+        # Trigger PI1 alarm only on "big move" and with cooldown
+        if moving:
+            now = time.time()
+            if (now - last_alarm_ts) >= alarm_cooldown_sec:
+                topic = f"{topic_prefix}/PI1/cmd"
+                payload = {
+                    "cmd": "ALARM_SET",
+                    "value": {"active": True, "reason": "GSG_MOVE", "magnitude": float(mag)},
+                }
+                alarm_pub.publish(topic, json.dumps(payload), qos=1, retain=False)
+                last_alarm_ts = now
 
     t = threading.Thread(
         target=run_gsg_loop,
         args=(
             float(gsg_cfg.get("delay_sec", 0.5)),
             gsg_threshold,
-            lambda moving: emit("sensor", "GSG", bool(moving), None, gsg_sim),
+            on_gsg,      
             stop_event,
             gsg_sim,
         ),
@@ -172,7 +193,9 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # DHT3
     dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
+    dht3_sim = bool(dht3_cfg.get("simulated", default_simulated))
 
     t = threading.Thread(
         target=run_dht_loop,
@@ -181,8 +204,8 @@ def main() -> None:
             float(dht3_cfg.get("temp_c_start", 22.0)),
             float(dht3_cfg.get("hum_pct_start", 45.0)),
             lambda temp_c, hum_pct: (
-                emit("sensor", "DHT3_TEMP", float(temp_c), "C", bool(dht3_cfg.get("simulated", default_simulated))),
-                emit("sensor", "DHT3_HUM", float(hum_pct), "%", bool(dht3_cfg.get("simulated", default_simulated))),
+                emit("sensor", "DHT3_TEMP", float(temp_c), "C", dht3_sim),
+                emit("sensor", "DHT3_HUM", float(hum_pct), "%", dht3_sim),
             ),
             stop_event,
         ),
@@ -191,203 +214,75 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # ----------------------------
-    # BTN loop: sends BTN state + on rising edge does:
-    # - stop blinking
-    # - add N seconds
-    # ----------------------------
+    # BTN physical loop: rising edge => stop blink + add seconds
     last_btn = False
 
     def on_btn(v: bool) -> None:
-        nonlocal last_btn, btn_add_seconds
-
+        nonlocal last_btn
         emit("sensor", "BTN", bool(v), None, btn_sim)
-
-        # rising edge OFF->ON
         if (not last_btn) and v:
             timer.stop_blink()
-            timer.add(btn_add_seconds)
-
-            emit("actuator", "4SD_ADD", int(btn_add_seconds), "sec", timer_sim)
-
+            add_sec = int(btn_add_seconds_ref["value"])
+            timer.add(add_sec)
+            emit("actuator", "4SD_ADD", add_sec, "sec", timer_sim)
+            emit_timer_state("BTN_RISING_EDGE")
         last_btn = v
 
     t = threading.Thread(
         target=run_button_loop,
-        args=(
-            0.1,
-            btn.isOn,
-            on_btn,
-            stop_event,
-        ),
+        args=(0.1, btn.isOn, on_btn, stop_event),
         daemon=True,
     )
     t.start()
     threads.append(t)
 
-    # ----------------------------
-    # Timer loop: publishes display + remaining seconds; on finish emits FINISHED
-    # FourDigitTimer itself handles blinking 00:00
-    # ----------------------------
+    # Timer loop: emits display + rem (+ finished)
+    def on_tick(text: str, rem: int) -> None:
+        emit("actuator", "4SD", text, None, timer_sim)
+        emit("actuator", "4SD_REM", int(rem), "sec", timer_sim)
+        running, _ = timer.status()
+        emit("actuator", "4SD_RUN", bool(running), None, timer_sim)
+        blink = bool(getattr(timer, "is_blinking", lambda: False)())
+        emit("actuator", "4SD_BLINK", bool(blink), None, timer_sim)
+
+    def on_finished() -> None:
+        emit("actuator", "4SD_FINISHED", True, None, timer_sim)
+        emit_timer_state("FINISHED")
+
     t = threading.Thread(
         target=run_timer_loop,
-        args=(
-            timer,
-            lambda text, rem: (
-                emit("actuator", "4SD", text, None, timer_sim),
-                emit("actuator", "4SD_REM", int(rem), "sec", timer_sim),
-            ),
-            lambda: emit("actuator", "4SD_FINISHED", True, None, timer_sim),
-            stop_event,
-        ),
+        args=(timer, on_tick, on_finished, stop_event),
         daemon=True,
     )
     t.start()
     threads.append(t)
-
-    # ----------------------------
-    # MQTT command listener: Web -> Server -> MQTT cmd -> PI2 applies
-    # ----------------------------
-    broker = str(mqtt_cfg.get("broker", "mosquitto"))
-    port = int(mqtt_cfg.get("port", 1883))
-    topic_prefix = str(mqtt_cfg.get("topic_prefix", "iot/smart-house"))
-
-    def apply_cmd(cmd: Dict[str, Any]) -> None:
-        nonlocal btn_add_seconds
-
-        t = str(cmd.get("type", ""))
-
-        if t == "TIMER_SET":
-            sec = int(float(cmd.get("seconds", 0)))
-            timer.set(sec)
-            emit("actuator", "4SD_SET", sec, "sec", timer_sim)
-            emit_timer_state("CMD_TIMER_SET")
-
-        elif t == "TIMER_RUN":
-            running = bool(cmd.get("running", True))
-            if running:
-                timer.start()
-            else:
-                timer.stop()
-            emit_timer_state("CMD_TIMER_RUN")
-
-        elif t == "TIMER_RESET":
-            timer.reset()
-            emit("actuator", "4SD_RESET", True, None, timer_sim)
-            emit_timer_state("CMD_TIMER_RESET")
-
-        elif t == "TIMER_ADD_CONFIG":
-            btn_add_seconds = int(float(cmd.get("addSeconds", 5)))
-            emit("actuator", "BTN_ADD_SEC", btn_add_seconds, "sec", timer_sim)
-            # ne mora emit_timer_state ovde
-
-        elif t == "BTN_PRESS":
-            timer.stop_blink()
-            timer.add(btn_add_seconds)
-            emit("actuator", "4SD_ADD", int(btn_add_seconds), "sec", timer_sim)
-            emit_timer_state("CMD_BTN_PRESS")
-
-    t = threading.Thread(
-        target=run_cmd_listener,
-        args=(
-            broker,
-            port,
-            f"{pi_id}-cmd-sub",
-            topic_prefix,
-            pi_id,
-            apply_cmd,
-            stop_event,
-        ),
-        daemon=True,
-    )
-    t.start()
-    threads.append(t)
-
-    # ----------------------------
-    # Console menu (optional; keep for debugging)
-    # ----------------------------
-    print_menu()
 
     try:
         while not stop_event.is_set():
-            try:
-                raw = input("> ").strip()
-            except (EOFError, KeyboardInterrupt):
-                raw = "0"
-
-            if not raw:
-                continue
-
-            parts = raw.split()
-            choice = parts[0]
-
-            if choice == "1":
-                running, left = timer.status()
-                print("\n--- STATUS ---")
-                print(f"DS2 (Door sensor):      {'ON' if ds2.isOn() else 'OFF'}")
-                print(f"BTN (Kitchen button):   {'ON' if btn.isOn() else 'OFF'}")
-                print(f"4SD (Timer):            {'RUN' if running else 'STOP'}  {timer.render()}  ({left}s)")
-                print(f"BTN adds N seconds:     {btn_add_seconds}s")
-
-            elif choice == "2":
-                # DS2 is modeled using Button class; in simulation you can toggle it
-                if ds2.isOn():
-                    ds2.off()
-                    emit("actuator", "DS2", False, None, ds2_sim)
-                else:
-                    ds2.on()
-                    emit("actuator", "DS2", True, None, ds2_sim)
-
-            elif choice == "3":
-                # manual simulated press (toggle)
-                if btn.isOn():
-                    btn.off()
-                    emit("sensor", "BTN", False, None, btn_sim)
-                else:
-                    btn.on()
-                    emit("sensor", "BTN", True, None, btn_sim)
-
-            elif choice == "4":
-                if len(parts) < 2:
-                    print("Usage: 4 <seconds>")
-                else:
-                    try:
-                        sec = int(float(parts[1]))
-                        timer.set(sec)
-                        emit("actuator", "4SD_SET", sec, "sec", timer_sim)
-                        print(f"[4SD] set to {sec}s ({timer.render()})")
-                    except ValueError:
-                        print("Invalid seconds.")
-
-            elif choice == "5":
-                running, _ = timer.status()
-                if running:
-                    timer.stop()
-                    emit("actuator", "4SD_RUN", False, None, timer_sim)
-                    print("[4SD] STOP")
-                else:
-                    timer.start()
-                    emit("actuator", "4SD_RUN", True, None, timer_sim)
-                    print("[4SD] START")
-
-            elif choice == "6":
-                timer.reset()
-                emit("actuator", "4SD_RESET", True, None, timer_sim)
-                print("[4SD] RESET")
-
-            elif choice == "0":
-                stop_event.set()
-
-            else:
-                print("Invalid option.")
-                print_menu()
-
-            time.sleep(0.05)
-
+            time.sleep(1)
     finally:
         stop_event.set()
-        time.sleep(0.2)
-        publisher.stop()
+
+        try:
+            cmd_listener.stop()
+        except Exception:
+            pass
+
+        try:
+            alarm_pub.loop_stop()
+            alarm_pub.disconnect()
+        except Exception:
+            pass
+
+        try:
+            publisher.stop()
+        except Exception:
+            pass
+
+        try:
+            GPIO.cleanup()
+        except Exception:
+            pass
 
         try:
             ds2.cleanup()
@@ -398,11 +293,7 @@ def main() -> None:
         except Exception:
             pass
         try:
-            GPIO.cleanup()
-        except Exception:
-            pass
-        try:
-            button.cleanup()
+            button_mod.cleanup()
         except Exception:
             pass
 

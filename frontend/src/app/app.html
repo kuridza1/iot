@@ -18,6 +18,10 @@
     <app-web-cam></app-web-cam>
   </div>
   
+  <div *ngIf="selectedPi === 'PI2'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+    <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
+    <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
+  </div>
   <!-- PI3 widgets -->
   <div *ngIf="selectedPi === 'PI3'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
     <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>

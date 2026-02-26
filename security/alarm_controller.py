@@ -176,3 +176,30 @@ class AlarmController:
                 h.held_triggered = True
                 self.emit("security", "DOOR_HELD", "DS1_HELD_5S", "event", True)
                 self.alarm_on("DS1_HELD_5S")
+
+    def trigger_alarm(self, reason: str = "INCIDENT", source: str = "REMOTE", meta: Optional[dict] = None) -> None:
+        """
+        Force ALARM state (e.g. GSG movement from PI2).
+        If already alarming, do nothing.
+        """
+        with self._state_lock:
+            if self.state == AlarmState.ALARM:
+                return
+
+        r = f"{source}:{reason}"
+        if meta:
+            try:
+                self.emit("security", "INCIDENT_META", meta, None, True)
+            except Exception:
+                pass
+
+        self.emit("security", "INCIDENT_ALARM_ON", r, None, True)
+        self.alarm_on(r)
+
+    def clear_alarm(self, reason: str = "CLEAR", source: str = "REMOTE") -> None:
+        """
+        Clear alarm back to DISARMED.
+        If you prefer ARMED instead, replace DISARMED with ARMED.
+        """
+        self.emit("security", "INCIDENT_ALARM_OFF", f"{source}:{reason}", None, True)
+        self.disarm(f"{source}:{reason}")

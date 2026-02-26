@@ -120,3 +120,34 @@ class PiCmdListener:
                 self._buzzer.off()
             self._emit("actuator", "DB", self._buzzer.isOn(), None, self._buz_sim)
             return
+        
+                # 5) Security alarm trigger (from other devices, e.g. PI2 GSG)
+        if cmd == "ALARM_SET":
+            active = True
+            reason = "GSG"
+            magnitude = None
+
+            if isinstance(value, dict):
+                active = bool(value.get("active", True))
+                reason = str(value.get("reason", reason))
+                magnitude = value.get("magnitude", None)
+            else:
+                active = bool(value)
+
+            if active:
+                try:
+                    self._alarm.trigger_alarm(reason=reason, source="MQTT", meta={"magnitude": magnitude})
+                except Exception:
+                    self._alarm.alarm_on(f"MQTT:{reason}")
+            else:
+                try:
+                    self._alarm.clear_alarm(reason=reason, source="MQTT")
+                except Exception:
+                    self._alarm.disarm(f"MQTT:{reason}")
+
+            # UI refresh (AlarmController već emituje ALARM_STATE, ali ovo je harmless)
+            try:
+                self._emit("security", "ALARM_STATE", self._alarm.state.value, None, True)
+            except Exception:
+                pass
+            return
