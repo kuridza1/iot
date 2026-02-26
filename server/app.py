@@ -73,7 +73,9 @@ def _snapshot_with_device(device: str) -> Dict[str, Any]:
     return snap
 
 
-def ws_emit_evt(evt: Dict[str, Any]) -> None:
+def ws_emit_evt(evt: Any) -> None:
+    if not isinstance(evt, dict):
+        return
     evt = dict(evt)
     evt.setdefault("ts", _now_ts())
     device = str(evt.get("device", "")).strip()
@@ -114,7 +116,20 @@ def ws_emit_cmd_result(
 
 
 # -------------------- MQTT -> server callback --------------------
-def on_event(payload: Dict[str, Any]) -> None:
+def on_event(payload: Any) -> None:
+    if isinstance(payload, list):
+        for item in payload:
+            on_event(item)
+        return
+
+    if isinstance(payload, dict) and isinstance(payload.get("events"), list):
+        for item in payload["events"]:
+            on_event(item)
+        return
+
+    if not isinstance(payload, dict):
+        return
+
     alarm.on_event(payload)
     ws_emit_evt(payload)
 
@@ -155,6 +170,36 @@ def on_set_device(data):
     join_room(device)
     emit("snapshot", _snapshot_with_device(device))
 
+ALLOWED_CMDS = {
+    "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
+
+    "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
+    "BRGB_TOGGLE", "BRGB_SET",
+
+    "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR", "PI3_LCD_REFRESH",
+    "LCD_TOGGLE", "LCD_TEXT", "LCD_CLEAR", "LCD_REFRESH",
+}
+
+@socketio.on("cmd")
+def on_ws_cmd(data):
+    data = data or {}
+    device = str(data.get("device", "")).strip()
+    cmd_name = str(data.get("cmd", "")).strip()
+    value = data.get("value", None)
+
+    if not device or not cmd_name:
+        ws_emit_cmd_result(device or "?", cmd_name or "?", False, "missing device/cmd")
+        return
+
+    if cmd_name not in ALLOWED_CMDS:
+        ws_emit_cmd_result(device, cmd_name, False, "cmd not allowed")
+        return
+
+    try:
+        cmd_pub.publish(device=device, cmd=cmd_name, value=value)
+        ws_emit_cmd_result(device, cmd_name, True, None, value=value)
+    except Exception as e:
+        ws_emit_cmd_result(device, cmd_name, False, str(e))
 
 # -------------------- HTTP routes --------------------
 @app.get("/health")
@@ -190,19 +235,17 @@ def cmd():
         ws_emit_cmd_result(device or "?", cmd_name or "?", False, "missing device/cmd")
         return jsonify({"error": "missing device/cmd"}), 400
 
-    allowed = {
-        "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
-        "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
-        "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR",
-    }
-    if cmd_name not in allowed:
+    if cmd_name not in ALLOWED_CMDS:
         ws_emit_cmd_result(device, cmd_name, False, "cmd not allowed")
         return jsonify({"error": "cmd not allowed"}), 400
 
-    cmd_pub.publish(device=device, cmd=cmd_name, value=value)
-    ws_emit_cmd_result(device, cmd_name, True, None, value=value)
-
-    return jsonify({"ok": True})
+    try:
+        cmd_pub.publish(device=device, cmd=cmd_name, value=value)
+        ws_emit_cmd_result(device, cmd_name, True, None, value=value)
+        return jsonify({"ok": True})
+    except Exception as e:
+        ws_emit_cmd_result(device, cmd_name, False, str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 @app.post("/alarm/pin")

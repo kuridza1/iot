@@ -8,11 +8,11 @@
     "pi_id": "PI3",
     "device_name": "SmartRooms",
     "location": "Bedroom/LivingRoom",
-    "default_simulated": false
+    "default_simulated": true
   },
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.107.132",
+    "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi3-smartrooms",
@@ -24,13 +24,13 @@
 
   "DPIR3": {
     "delay_sec": 1.5,
-    "simulated": false,
+    "simulated": true,
     "pin": 17,
     "pull": "down",
     "active_high": true
   },
 
-  "DHT1": { "delay_sec": 3.0, "simulated": false, "temp_c_start": 22.5, "hum_pct_start": 45.0 },
+  "DHT1": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 22.5, "hum_pct_start": 45.0 },
   "DHT2": { "delay_sec": 3.0, "simulated": true, "temp_c_start": 21.0, "hum_pct_start": 48.0 },
 
   "IR": { "delay_sec": 0.25, "simulated": true, "burst_prob": 0.06 },
