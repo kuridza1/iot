@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import threading
 import time
 from typing import Dict, Any, Optional
 
 from actuators import button
 from actuators.button import Button
-from actuators.buzzer import Buzzer
 from actuators.four_digit_timer import FourDigitTimer
-from actuators.led import Led
-from mqtt.mqtt_publisher import MqttBatchPublisher
+
 from mqtt.mqtt_publisher import MqttBatchPublisher
 from helper.telemetry import TelemetryEvent, now_ts
 from helper.helper import GPIO
@@ -17,8 +17,15 @@ from sensors.pir import run_pir_loop
 from sensors.gsg import run_gsg_loop
 from sensors.timer import run_timer_loop
 from sensors.dht import run_dht_loop
+from sensors.btn import run_button_loop
 
 from helper.settings import load_settings
+
+# You said you added the command listener already
+# Expected signature:
+# run_cmd_listener(broker, port, client_id, topic_prefix, device, on_cmd, stop_event)
+from commands.pi2 import run_cmd_listener
+
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
@@ -63,28 +70,46 @@ def main() -> None:
         )
         publisher.enqueue(ev)
         if kind == "actuator":
-                print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
+            print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
+    def emit_timer_state(reason: str) -> None:
+        running, left = timer.status()
+        emit("actuator", "4SD", timer.render(), None, timer_sim)
+        emit("actuator", "4SD_REM", int(left), "sec", timer_sim)
+        emit("actuator", "4SD_RUN", bool(running), None, timer_sim)
+        emit("actuator", "4SD_STATE_REASON", str(reason), None, timer_sim)
+    # ----------------------------
+    # Components
+    # ----------------------------
     ds2_cfg = cfg.get("DS2", {"simulated": default_simulated, "pin": 23, "active_high": True})
     btn_cfg = cfg.get("BTN", {"simulated": default_simulated, "pin": 24, "active_high": True})
     timer_cfg = cfg.get("4SD", {"simulated": default_simulated})
 
+    ds2_sim = bool(ds2_cfg.get("simulated", default_simulated))
+    btn_sim = bool(btn_cfg.get("simulated", default_simulated))
+    timer_sim = bool(timer_cfg.get("simulated", default_simulated))
+
     ds2 = Button(
-        simulated=bool(ds2_cfg.get("simulated", default_simulated)),
+        simulated=ds2_sim,
         pin=int(ds2_cfg.get("pin", 23)),
         active_high=bool(ds2_cfg.get("active_high", True)),
     )
 
     btn = Button(
-        simulated=bool(btn_cfg.get("simulated", default_simulated)),
+        simulated=btn_sim,
         pin=int(btn_cfg.get("pin", 24)),
         active_high=bool(btn_cfg.get("active_high", True)),
     )
 
-    timer = FourDigitTimer(simulated=bool(timer_cfg.get("simulated", default_simulated)))
+    timer = FourDigitTimer(simulated=timer_sim)
+    emit_timer_state("BOOT")
+    emit("sensor", "BTN", bool(btn.isOn()), None, btn_sim)
+    btn_add_seconds: int = int(cfg.get("BTN_ADD_SECONDS", 5))
 
+    # ----------------------------
+    # Sensors loops (as you had)
+    # ----------------------------
     dpir_cfg = cfg.get("DPIR2", {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True})
-
     dpir_sim = bool(dpir_cfg.get("simulated", default_simulated))
     dpir_pin = int(dpir_cfg.get("pin", 17))
     dpir_pull = str(dpir_cfg.get("pull", "down"))
@@ -107,15 +132,9 @@ def main() -> None:
     threads.append(t)
 
     dus_cfg = cfg.get(
-    "DUS2",
-    {
-        "delay_sec": 2.0,
-        "simulated": default_simulated,
-        "trig_pin": 5,
-        "echo_pin": 6,
-        },
+        "DUS2",
+        {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6},
     )
-
     dus_sim = bool(dus_cfg.get("simulated", default_simulated))
     dus_trig = int(dus_cfg.get("trig_pin", 5))
     dus_echo = int(dus_cfg.get("echo_pin", 6))
@@ -136,7 +155,6 @@ def main() -> None:
     threads.append(t)
 
     gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated, "threshold": 0.5})
-
     gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
 
@@ -156,7 +174,6 @@ def main() -> None:
 
     dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
 
-    # --- DHT3 loop: emits TEMP + HUM ---
     t = threading.Thread(
         target=run_dht_loop,
         args=(
@@ -174,12 +191,33 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ----------------------------
+    # BTN loop: sends BTN state + on rising edge does:
+    # - stop blinking
+    # - add N seconds
+    # ----------------------------
+    last_btn = False
+
+    def on_btn(v: bool) -> None:
+        nonlocal last_btn, btn_add_seconds
+
+        emit("sensor", "BTN", bool(v), None, btn_sim)
+
+        # rising edge OFF->ON
+        if (not last_btn) and v:
+            timer.stop_blink()
+            timer.add(btn_add_seconds)
+
+            emit("actuator", "4SD_ADD", int(btn_add_seconds), "sec", timer_sim)
+
+        last_btn = v
+
     t = threading.Thread(
-        target=run_timer_loop,
+        target=run_button_loop,
         args=(
-            timer,
-            lambda text, rem: emit("actuator", "4SD", text, None, bool(timer_cfg.get("simulated", default_simulated))),
-            lambda: emit("actuator", "4SD_FINISHED", True, None, bool(timer_cfg.get("simulated", default_simulated))),
+            0.1,
+            btn.isOn,
+            on_btn,
             stop_event,
         ),
         daemon=True,
@@ -187,6 +225,87 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ----------------------------
+    # Timer loop: publishes display + remaining seconds; on finish emits FINISHED
+    # FourDigitTimer itself handles blinking 00:00
+    # ----------------------------
+    t = threading.Thread(
+        target=run_timer_loop,
+        args=(
+            timer,
+            lambda text, rem: (
+                emit("actuator", "4SD", text, None, timer_sim),
+                emit("actuator", "4SD_REM", int(rem), "sec", timer_sim),
+            ),
+            lambda: emit("actuator", "4SD_FINISHED", True, None, timer_sim),
+            stop_event,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
+
+    # ----------------------------
+    # MQTT command listener: Web -> Server -> MQTT cmd -> PI2 applies
+    # ----------------------------
+    broker = str(mqtt_cfg.get("broker", "mosquitto"))
+    port = int(mqtt_cfg.get("port", 1883))
+    topic_prefix = str(mqtt_cfg.get("topic_prefix", "iot/smart-house"))
+
+    def apply_cmd(cmd: Dict[str, Any]) -> None:
+        nonlocal btn_add_seconds
+
+        t = str(cmd.get("type", ""))
+
+        if t == "TIMER_SET":
+            sec = int(float(cmd.get("seconds", 0)))
+            timer.set(sec)
+            emit("actuator", "4SD_SET", sec, "sec", timer_sim)
+            emit_timer_state("CMD_TIMER_SET")
+
+        elif t == "TIMER_RUN":
+            running = bool(cmd.get("running", True))
+            if running:
+                timer.start()
+            else:
+                timer.stop()
+            emit_timer_state("CMD_TIMER_RUN")
+
+        elif t == "TIMER_RESET":
+            timer.reset()
+            emit("actuator", "4SD_RESET", True, None, timer_sim)
+            emit_timer_state("CMD_TIMER_RESET")
+
+        elif t == "TIMER_ADD_CONFIG":
+            btn_add_seconds = int(float(cmd.get("addSeconds", 5)))
+            emit("actuator", "BTN_ADD_SEC", btn_add_seconds, "sec", timer_sim)
+            # ne mora emit_timer_state ovde
+
+        elif t == "BTN_PRESS":
+            timer.stop_blink()
+            timer.add(btn_add_seconds)
+            emit("actuator", "4SD_ADD", int(btn_add_seconds), "sec", timer_sim)
+            emit_timer_state("CMD_BTN_PRESS")
+
+    t = threading.Thread(
+        target=run_cmd_listener,
+        args=(
+            broker,
+            port,
+            f"{pi_id}-cmd-sub",
+            topic_prefix,
+            pi_id,
+            apply_cmd,
+            stop_event,
+        ),
+        daemon=True,
+    )
+    t.start()
+    threads.append(t)
+
+    # ----------------------------
+    # Console menu (optional; keep for debugging)
+    # ----------------------------
     print_menu()
 
     try:
@@ -208,23 +327,25 @@ def main() -> None:
                 print(f"DS2 (Door sensor):      {'ON' if ds2.isOn() else 'OFF'}")
                 print(f"BTN (Kitchen button):   {'ON' if btn.isOn() else 'OFF'}")
                 print(f"4SD (Timer):            {'RUN' if running else 'STOP'}  {timer.render()}  ({left}s)")
-                print("DHT3: publishing TEMP/HUM events")
+                print(f"BTN adds N seconds:     {btn_add_seconds}s")
 
             elif choice == "2":
+                # DS2 is modeled using Button class; in simulation you can toggle it
                 if ds2.isOn():
                     ds2.off()
-                    emit("actuator", "DS2", False, None, bool(ds2_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "DS2", False, None, ds2_sim)
                 else:
                     ds2.on()
-                    emit("actuator", "DS2", True, None, bool(ds2_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "DS2", True, None, ds2_sim)
 
             elif choice == "3":
+                # manual simulated press (toggle)
                 if btn.isOn():
                     btn.off()
-                    emit("actuator", "BTN", False, None, bool(btn_cfg.get("simulated", default_simulated)))
+                    emit("sensor", "BTN", False, None, btn_sim)
                 else:
                     btn.on()
-                    emit("actuator", "BTN", True, None, bool(btn_cfg.get("simulated", default_simulated)))
+                    emit("sensor", "BTN", True, None, btn_sim)
 
             elif choice == "4":
                 if len(parts) < 2:
@@ -233,7 +354,7 @@ def main() -> None:
                     try:
                         sec = int(float(parts[1]))
                         timer.set(sec)
-                        emit("actuator", "4SD_SET", sec, "sec", bool(timer_cfg.get("simulated", default_simulated)))
+                        emit("actuator", "4SD_SET", sec, "sec", timer_sim)
                         print(f"[4SD] set to {sec}s ({timer.render()})")
                     except ValueError:
                         print("Invalid seconds.")
@@ -242,16 +363,16 @@ def main() -> None:
                 running, _ = timer.status()
                 if running:
                     timer.stop()
-                    emit("actuator", "4SD_RUN", False, None, bool(timer_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "4SD_RUN", False, None, timer_sim)
                     print("[4SD] STOP")
                 else:
                     timer.start()
-                    emit("actuator", "4SD_RUN", True, None, bool(timer_cfg.get("simulated", default_simulated)))
+                    emit("actuator", "4SD_RUN", True, None, timer_sim)
                     print("[4SD] START")
 
             elif choice == "6":
                 timer.reset()
-                emit("actuator", "4SD_RESET", True, None, bool(timer_cfg.get("simulated", default_simulated)))
+                emit("actuator", "4SD_RESET", True, None, timer_sim)
                 print("[4SD] RESET")
 
             elif choice == "0":
@@ -265,7 +386,7 @@ def main() -> None:
 
     finally:
         stop_event.set()
-        time.sleep(0.1)
+        time.sleep(0.2)
         publisher.stop()
 
         try:
@@ -284,7 +405,6 @@ def main() -> None:
             button.cleanup()
         except Exception:
             pass
-
 
 
 if __name__ == "__main__":
