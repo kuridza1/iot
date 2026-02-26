@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+import json
+import os
 import threading
 import time
 from typing import Dict, Any, Optional
 
+import paho.mqtt.client as mqtt
+
 from helper.helper import GPIO
 from helper.settings import load_settings
-
 from helper.telemetry import TelemetryEvent, now_ts
 from mqtt.mqtt_publisher import MqttBatchPublisher
 
@@ -30,7 +35,18 @@ def print_menu() -> None:
     print("0) Exit")
 
 
+def _to_int01(v: Any) -> int:
+    if isinstance(v, bool):
+        return 1 if v else 0
+    if isinstance(v, (int, float)):
+        return 1 if int(v) != 0 else 0
+    s = str(v).strip().lower()
+    return 1 if s in ("1", "true", "t", "yes", "y", "on") else 0
+
+
 def main() -> None:
+    print(f"[{ts_str()}] PI3 main starting. pid={os.getpid()}")
+
     cfg: Dict[str, Any] = load_settings("pi3/settings.json")
 
     device_cfg = cfg.get("device", {})
@@ -43,7 +59,7 @@ def main() -> None:
     publisher.start()
 
     stop_event = threading.Event()
-    threads = []  # type: list[threading.Thread]
+    threads: list[threading.Thread] = []
 
     def emit(kind: str, code: str, value: Any, unit: Optional[str], simulated: bool) -> None:
         ev = TelemetryEvent(
@@ -63,8 +79,11 @@ def main() -> None:
     rgb_cfg = cfg.get("BRGB", {"simulated": default_simulated})
     lcd_cfg = cfg.get("LCD", {"simulated": default_simulated})
 
+    rgb_sim = bool(rgb_cfg.get("simulated", default_simulated))
+    lcd_sim = bool(lcd_cfg.get("simulated", default_simulated))
+
     brgb = BRGB(
-        simulated=bool(rgb_cfg.get("simulated", default_simulated)),
+        simulated=rgb_sim,
         pin_r=int(rgb_cfg.get("pin_r", 17)),
         pin_g=int(rgb_cfg.get("pin_g", 27)),
         pin_b=int(rgb_cfg.get("pin_b", 22)),
@@ -72,13 +91,9 @@ def main() -> None:
     )
 
     lcd = Lcd(
-        simulated=bool(lcd_cfg.get("simulated", default_simulated)),
+        simulated=lcd_sim,
         address=int(lcd_cfg.get("address", 0x27)),
     )
-
-    # Shared locks (thread safety: IR loop + CLI menu can change BRGB; LCD loop reads latest)
-    brgb_lock = threading.Lock()
-    lcd_lock = threading.Lock()
 
     # LCD enable/disable (logical)
     lcd_enabled = True
@@ -118,6 +133,7 @@ def main() -> None:
     # Rotation timing
     rotate_period = float(lcd_cfg.get("rotate_period_sec", 2.5))
 
+    lcd_lock = threading.Lock()
     latest: Dict[str, Dict[str, Optional[float]]] = {
         "DHT1": {"t": None, "h": None},
         "DHT2": {"t": None, "h": None},
@@ -138,7 +154,6 @@ def main() -> None:
             return None
         try:
             import urllib.request
-            import json
 
             url = f"{server_base}/telemetry/latest?device={device}&code={code}"
             with urllib.request.urlopen(url, timeout=1.0) as r:
@@ -156,7 +171,8 @@ def main() -> None:
     def render_screen(name: str, tval: Optional[float], hval: Optional[float]) -> str:
         if tval is None or hval is None:
             return f"{name}\nNo data"
-        return f"{name}\nT:{tval:4.1f}C H:{hval:4.1f}%"
+        # two-line LCD-friendly string
+        return f"{name} T:{tval:4.1f}C\nH:{hval:4.1f}%"
 
     def refresh_lcd_once() -> str:
         nonlocal idx
@@ -176,9 +192,12 @@ def main() -> None:
             hval = latest[name]["h"]
 
         text = render_screen(name, tval, hval)
-        emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
+
         if lcd_enabled:
             lcd.show(text)
+
+        # publish LCD text for frontend preview
+        emit("actuator", "LCD_TEXT", text, None, lcd_sim)
 
         return text
 
@@ -206,10 +225,19 @@ def main() -> None:
             if lcd_enabled:
                 lcd.show(text)
 
-            emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
+            # publish LCD text for frontend preview
+            emit("actuator", "LCD_TEXT", text, None, lcd_sim)
+
             time.sleep(rotate_period)
 
-    threading.Thread(target=lcd_rotate_loop, daemon=True).start()
+    # Start rotate loop ONCE (prevents “random fast swapping” from duplicate threads)
+    lcd_rotate_started = False
+    lcd_rotate_lock = threading.Lock()
+    with lcd_rotate_lock:
+        if not lcd_rotate_started:
+            lcd_rotate_started = True
+            print(f"[{ts_str()}] LCD rotate loop starting (period={rotate_period:.2f}s)")
+            threading.Thread(target=lcd_rotate_loop, daemon=True).start()
 
     # ---------- DHT1 thread ----------
     threading.Thread(
@@ -249,88 +277,13 @@ def main() -> None:
         daemon=True,
     ).start()
 
-    # ---------- IR -> BRGB control ----------
-    def brgb_apply(action_name: str, fn) -> None:
-        with brgb_lock:
-            fn()
-            st = brgb.get()
-            on = brgb.isOn()
-        emit("actuator", "BRGB", st, None, bool(rgb_cfg.get("simulated", default_simulated)))
-        print(f"[IR] {action_name} -> r={st['r']} g={st['g']} b={st['b']} on={on}")
-
-    def brgb_toggle() -> None:
-        def _do():
-            if brgb.isOn():
-                brgb.off()
-            else:
-                brgb.on()
-        brgb_apply("TOGGLE", _do)
-
-    # Mapiranje IR tastera (nazivi koje IRReceiver vraća) -> akcije
-    IR_TO_RGB = {
-        "OK": "TOGGLE",
-        "#": "TOGGLE",
-        "1": "RED",
-        "2": "GREEN",
-        "3": "BLUE",
-        "4": "WHITE",
-        "5": "OFF",
-        "6": "YELLOW",
-        "7": "CYAN",
-        "8": "MAGENTA",
-        "0": "OFF",
-        "*": "OFF",
-        "UP": "WHITE",
-        "DOWN": "OFF",
-        "LEFT": "RED",
-        "RIGHT": "BLUE",
-    }
-
-    def handle_ir(code: str) -> None:
-        key = str(code).strip().upper()
-        action = IR_TO_RGB.get(key)
-
-        # Uvek emituj IR događaj da možeš da pratiš šta stiže
-        emit("sensor", "IR", key, None, bool(ir_cfg.get("simulated", default_simulated)))
-
-        if not action:
-            return
-
-        if action == "TOGGLE":
-            brgb_toggle()
-            return
-        if action == "OFF":
-            brgb_apply("OFF", brgb.off)
-            return
-        if action == "WHITE":
-            brgb_apply("WHITE", brgb.white)
-            return
-        if action == "RED":
-            brgb_apply("RED", brgb.red)
-            return
-        if action == "GREEN":
-            brgb_apply("GREEN", brgb.green)
-            return
-        if action == "BLUE":
-            brgb_apply("BLUE", brgb.blue)
-            return
-        if action == "YELLOW":
-            brgb_apply("YELLOW", brgb.yellow)
-            return
-        if action == "CYAN":
-            brgb_apply("CYAN", brgb.cyan)
-            return
-        if action == "MAGENTA":
-            brgb_apply("MAGENTA", brgb.magenta)
-            return
-
     # ---------- IR thread ----------
     threading.Thread(
         target=run_ir_loop,
         args=(
             float(ir_cfg.get("delay_sec", 0.25)),
             float(ir_cfg.get("burst_prob", 0.06)),
-            lambda c: handle_ir(str(c)),  # <= ovde ide kontrola BRGB-a
+            lambda c: emit("sensor", "IR", str(c), None, bool(ir_cfg.get("simulated", default_simulated))),
             stop_event,
             bool(ir_cfg.get("simulated", default_simulated)),
             int(ir_cfg.get("pin", 17)),
@@ -339,6 +292,67 @@ def main() -> None:
         daemon=True,
     ).start()
 
+    # ---------- MQTT command listener (frontend -> server -> MQTT -> PI3) ----------
+    broker = str(mqtt_cfg.get("broker", "localhost"))
+    port = int(mqtt_cfg.get("port", 1883))
+    topic_prefix = str(mqtt_cfg.get("topic_prefix", "")).strip().rstrip("/")
+    cmd_topic = f"{topic_prefix}/{pi_id}/cmd" if topic_prefix else f"{pi_id}/cmd"
+
+    def _handle_cmd(cmd: str, value: Any) -> None:
+        nonlocal lcd_enabled
+        cmd = str(cmd or "").strip()
+        value = value if isinstance(value, dict) else {}
+
+        if cmd in ("BRGB_SET", "PI3_BRGB_SET"):
+            r = bool(_to_int01(value.get("r", 0)))
+            g = bool(_to_int01(value.get("g", 0)))
+            b = bool(_to_int01(value.get("b", 0)))
+
+            print(f"[{ts_str()}] FRONTEND CMD {cmd}: r={r} g={g} b={b}")
+            brgb.set(r, g, b)
+            emit("actuator", "BRGB_SET", brgb.get(), None, rgb_sim)
+
+        elif cmd in ("LCD_TOGGLE", "PI3_LCD_TOGGLE"):
+            print(f"[{ts_str()}] FRONTEND CMD {cmd}")
+            lcd_enabled = not lcd_enabled
+            if not lcd_enabled:
+                lcd.show("")
+            else:
+                refresh_lcd_once()
+            emit("actuator", "LCD_ENABLED", lcd_enabled, None, lcd_sim)
+
+        elif cmd in ("LCD_REFRESH", "PI3_LCD_REFRESH"):
+            print(f"[{ts_str()}] FRONTEND CMD {cmd}")
+            refresh_lcd_once()
+
+        else:
+            # ignore unknown commands
+            return
+
+    def _on_cmd_msg(client, userdata, msg):
+        try:
+            data = json.loads(msg.payload.decode("utf-8", errors="replace"))
+        except Exception:
+            return
+
+        dev = str(data.get("device", "")).strip()
+        if dev and dev.upper() != pi_id.upper():
+            return
+
+        cmd = data.get("cmd", "")
+        value = data.get("value", {})
+        _handle_cmd(cmd, value)
+
+    cmd_client = mqtt.Client(client_id=f"{pi_id}-cmd")
+    cmd_client.on_message = _on_cmd_msg
+    try:
+        cmd_client.connect(broker, port, keepalive=30)
+        cmd_client.subscribe(cmd_topic)
+        cmd_client.loop_start()
+        print(f"[{ts_str()}] PI3 subscribed to commands: {cmd_topic}")
+    except Exception as e:
+        print(f"[{ts_str()}] WARNING: cmd listener failed to start: {e}")
+
     print_menu()
 
     try:
@@ -346,24 +360,24 @@ def main() -> None:
             choice = input("> ").strip()
 
             if choice == "1":
-                with brgb_lock:
-                    st = brgb.get()
-                    on = brgb.isOn()
+                st = brgb.get()
                 print("\n--- STATUS ---")
-                print(f"BRGB: {'ON' if on else 'OFF'}  r={st['r']} g={st['g']} b={st['b']}")
+                print(f"BRGB: {'ON' if brgb.isOn() else 'OFF'}  r={st['r']} g={st['g']} b={st['b']}")
                 print(f"LCD:  {'ON' if lcd_enabled else 'OFF'}")
 
             elif choice == "2":
-                brgb_toggle()
+                if brgb.isOn():
+                    brgb.off()
+                else:
+                    brgb.on()
+                emit("actuator", "BRGB", brgb.get(), None, rgb_sim)
+                print(f"[BRGB] {'ON' if brgb.isOn() else 'OFF'}")
 
             elif choice == "3":
                 try:
                     r, g, b = map(int, input("r g b (0/1): ").split())
-
-                    def _do():
-                        brgb.set(bool(r), bool(g), bool(b))
-
-                    brgb_apply(f"SET {r} {g} {b}", _do)
+                    brgb.set(bool(r), bool(g), bool(b))
+                    emit("actuator", "BRGB_SET", brgb.get(), None, rgb_sim)
                     print(f"[BRGB] SET r={bool(r)} g={bool(g)} b={bool(b)}")
                 except Exception:
                     print("Invalid input. Example: 1 0 1")
@@ -374,7 +388,7 @@ def main() -> None:
                     lcd.show("")  # blank
                 else:
                     refresh_lcd_once()
-                emit("actuator", "LCD_ENABLED", lcd_enabled, None, bool(lcd_cfg.get("simulated", default_simulated)))
+                emit("actuator", "LCD_ENABLED", lcd_enabled, None, lcd_sim)
                 print(f"[LCD] {'ON' if lcd_enabled else 'OFF'}")
 
             elif choice == "5":
@@ -393,6 +407,12 @@ def main() -> None:
     finally:
         stop_event.set()
         time.sleep(0.1)
+
+        try:
+            cmd_client.loop_stop()
+            cmd_client.disconnect()
+        except Exception:
+            pass
 
         try:
             publisher.stop()

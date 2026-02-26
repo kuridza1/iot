@@ -11,10 +11,6 @@
     <div class="line" *ngFor="let ln of (text.split('\n').slice(0,2))">{{ ln }}</div>
   </div>
 
-  <div class="btns">
-    <button (click)="toggle()" [disabled]="busy">Toggle</button>
-    <button (click)="refresh()" [disabled]="busy">Refresh</button>
-  </div>
 
   <div class="msg" [class.ok]="lastOk === true" [class.err]="lastOk === false">
     <ng-container *ngIf="lastOk === true">✓ ok</ng-container>
