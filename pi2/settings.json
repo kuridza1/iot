@@ -3,19 +3,18 @@
     "pi_id": "PI2",
     "device_name": "Smart garage",
     "location": "Garage",
-    "default_simulated": false
+    "default_simulated": true
   },
-
   "mqtt": {
     "enabled": true,
     "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi2-smart-garage",
-    "qos": 1,
+    "qos": 0,
     "retain": false,
-    "batch_size": 10,
-    "flush_interval_sec": 5
+    "batch_size": 1,
+    "flush_interval_sec": 0.02
   },
 
   "DS2": {
@@ -47,14 +46,14 @@
 
   "DHT3": {
     "delay_sec": 3.0,
-    "simulated": false,
+    "simulated": true,
     "temp_c_start": 22.0,
     "hum_pct_start": 45.0
   },
 
   "GSG": {
     "delay_sec": 0.5,
-    "simulated": false,
+    "simulated": true,
     "threshold": 0.5
   },
 

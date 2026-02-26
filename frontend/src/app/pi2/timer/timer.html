@@ -1,0 +1,49 @@
+<div class="timer-shell">
+  <div class="timer-card">
+
+    <div class="timer-head">
+      <div class="timer-title">Stopwatch</div>
+      <div class="timer-device">{{ device }}</div>
+    </div>
+
+    <div class="timer-display">
+      <div class="timer-digits"
+          [class.blinking]="display === '00:00' && !blinkSuppressed"
+          [attr.data-val]="display">
+        {{ display }}
+      </div>
+    </div>
+
+    <div class="btn-main">
+      <button class="btn btn-green" (click)="start()">START</button>
+      <button class="btn btn-red" (click)="stop()">STOP</button>
+      <button class="btn" (click)="reset()">RESET</button>
+    </div>
+
+    <div class="btn-bottom">
+      <button class="btn btn-amber" (click)="pressBtn()">BTN</button>
+      <div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="timer-config">
+      <div class="cfg-group">
+        <div class="cfg-label">Set (sec)</div>
+        <div class="cfg-row">
+          <input class="cfg-input" type="number" [(ngModel)]="setSeconds" min="0" step="1" />
+          <button class="btn btn-cfg" (click)="applySetTime()">SET</button>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-label">BTN +N (sec)</div>
+        <div class="cfg-row">
+          <input class="cfg-input" type="number" [(ngModel)]="addSeconds" min="0" step="1" />
+          <button class="btn btn-cfg" (click)="applyAddSeconds()">SAVE</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

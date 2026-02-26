@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { PANES, PiId } from './model/smart-house.model';
 import { FloorplanComponent } from './floorplan/floorplan.component';
 import { GrafanaEmbedComponent } from './grafana-embed/grafana-embed.component';
+import { Timer } from './pi2/timer/timer';
+import { Gsg } from './pi2/gsg/gsg';
 import { Ds1 } from './pi1/ds1/ds1';
 import { Dms } from './pi1/dms/dms';
 import { SecurityStatus } from './pi1/security-status/security-status';
@@ -16,13 +18,8 @@ import { WsService } from './ws.service'; // adjust path if needed
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
-  imports: [
-    CommonModule,
-    FloorplanComponent,
-    GrafanaEmbedComponent,
-    Ds1, Dms, WebCam, SecurityStatus,
-    LcdComponent, BrgbComponent
-  ],
+  imports: [CommonModule, FloorplanComponent, GrafanaEmbedComponent, Ds1,
+     Dms, WebCam, SecurityStatus, LcdComponent, BrgbComponent, Timer, Gsg],
 })
 export class App implements OnInit {
   apiBase = 'http://localhost:5000';

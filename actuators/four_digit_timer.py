@@ -47,7 +47,10 @@ class FourDigitTimer:
             self._blink = False
             self._blink_on = True
 
-
+    def is_blinking(self) -> bool:
+        with self._lock:
+            return self._blink
+        
     def tick_1hz(self) -> tuple[Optional[int], bool]:
         with self._lock:
             finished_now = False

@@ -8,7 +8,9 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import requests
 from flask_socketio import SocketIO, emit, join_room, leave_room
-
+from flask import make_response
+from flask import Flask, Response, json, jsonify, request, stream_with_context
+from flask_cors import CORS
 from influx_writer import InfluxWriter
 from influx_reader import InfluxReader
 from mqtt_to_influx import MqttToInfluxService
@@ -175,6 +177,7 @@ ALLOWED_CMDS = {
 
     "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
     "BRGB_TOGGLE", "BRGB_SET",
+    "TIMER_SET", "TIMER_RUN", "TIMER_RESET", "TIMER_ADD_CONFIG", "BTN_PRESS",
 
     "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR", "PI3_LCD_REFRESH",
     "LCD_TOGGLE", "LCD_TEXT", "LCD_CLEAR", "LCD_REFRESH",
@@ -269,6 +272,53 @@ def alarm_pin():
 
     ws_emit_snapshot(device)
     return jsonify({"ok": ok})
+
+@app.route("/pi2/timer/set", methods=["POST", "OPTIONS"])
+def pi2_timer_set():
+    if request.method == "OPTIONS":
+        return make_response(("", 200))
+
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI2")).strip()
+    seconds = int(float(data.get("seconds", 0)))
+    cmd_pub.publish(device=device, cmd="TIMER_SET", value={"seconds": seconds})
+    ws_emit_cmd_result(device, "TIMER_SET", True, value={"seconds": seconds})
+    return jsonify({"ok": True})
+
+@app.post("/pi2/timer/run")
+def pi2_timer_run():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI2")).strip()
+    running = bool(data.get("running", True))
+    cmd_pub.publish(device=device, cmd="TIMER_RUN", value={"running": running})
+    ws_emit_cmd_result(device, "TIMER_RUN", True, value={"running": running})
+    return jsonify({"ok": True})
+
+@app.post("/pi2/timer/reset")
+def pi2_timer_reset():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI2")).strip()
+    cmd_pub.publish(device=device, cmd="TIMER_RESET", value=True) 
+
+    ws_emit_cmd_result(device, "TIMER_RESET", True, value=True)
+    return jsonify({"ok": True})
+
+@app.post("/pi2/timer/add-seconds-config")
+def pi2_timer_add_cfg():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI2")).strip()
+    add_seconds = int(float(data.get("addSeconds", 5)))
+    cmd_pub.publish(device=device, cmd="TIMER_ADD_CONFIG", value={"addSeconds": add_seconds})
+    ws_emit_cmd_result(device, "TIMER_ADD_CONFIG", True, value={"addSeconds": add_seconds})
+    return jsonify({"ok": True})
+
+@app.post("/pi2/btn/press")
+def pi2_btn_press():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI2")).strip()
+    cmd_pub.publish(device=device, cmd="BTN_PRESS", value=True) 
+    ws_emit_cmd_result(device, "BTN_PRESS", True, value=True)
+    return jsonify({"ok": True})
 
 CAMERA_URL = "http://PI1_IP:8080/?action=stream"
 
