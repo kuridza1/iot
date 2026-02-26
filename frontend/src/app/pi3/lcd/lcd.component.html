@@ -1,0 +1,24 @@
+<div class="widget-frame">
+  <div class="top">
+    <div class="title">LCD</div>
+    <div class="dots">
+      <span class="dot conn" [class.on]="connected" title="{{ connected ? 'Live' : 'Reconnecting…' }}"></span>
+      <span class="dot state" [class.on]="enabled === true" [class.off]="enabled === false"></span>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="line" *ngFor="let ln of (text.split('\n').slice(0,2))">{{ ln }}</div>
+  </div>
+
+  <div class="btns">
+    <button (click)="toggle()" [disabled]="busy">Toggle</button>
+    <button (click)="refresh()" [disabled]="busy">Refresh</button>
+  </div>
+
+  <div class="msg" [class.ok]="lastOk === true" [class.err]="lastOk === false">
+    <ng-container *ngIf="lastOk === true">✓ ok</ng-container>
+    <ng-container *ngIf="lastOk === false">✗ {{ lastError || 'failed' }}</ng-container>
+    <ng-container *ngIf="lastOk === null">&nbsp;</ng-container>
+  </div>
+</div>

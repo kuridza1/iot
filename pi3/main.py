@@ -76,6 +76,10 @@ def main() -> None:
         address=int(lcd_cfg.get("address", 0x27)),
     )
 
+    # Shared locks (thread safety: IR loop + CLI menu can change BRGB; LCD loop reads latest)
+    brgb_lock = threading.Lock()
+    lcd_lock = threading.Lock()
+
     # LCD enable/disable (logical)
     lcd_enabled = True
 
@@ -114,7 +118,6 @@ def main() -> None:
     # Rotation timing
     rotate_period = float(lcd_cfg.get("rotate_period_sec", 2.5))
 
-    lcd_lock = threading.Lock()
     latest: Dict[str, Dict[str, Optional[float]]] = {
         "DHT1": {"t": None, "h": None},
         "DHT2": {"t": None, "h": None},
@@ -153,7 +156,7 @@ def main() -> None:
     def render_screen(name: str, tval: Optional[float], hval: Optional[float]) -> str:
         if tval is None or hval is None:
             return f"{name}\nNo data"
-        return f"\n{name} T:{tval:4.1f}C\nH:{hval:4.1f}%"
+        return f"{name}\nT:{tval:4.1f}C H:{hval:4.1f}%"
 
     def refresh_lcd_once() -> str:
         nonlocal idx
@@ -173,7 +176,7 @@ def main() -> None:
             hval = latest[name]["h"]
 
         text = render_screen(name, tval, hval)
-
+        emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
         if lcd_enabled:
             lcd.show(text)
 
@@ -198,9 +201,12 @@ def main() -> None:
                 tval = latest[name]["t"]
                 hval = latest[name]["h"]
 
-            if lcd_enabled:
-                lcd.show(render_screen(name, tval, hval))
+            text = render_screen(name, tval, hval)
 
+            if lcd_enabled:
+                lcd.show(text)
+
+            emit("actuator", "LCD_TEXT", text, None, bool(lcd_cfg.get("simulated", default_simulated)))
             time.sleep(rotate_period)
 
     threading.Thread(target=lcd_rotate_loop, daemon=True).start()
@@ -243,13 +249,88 @@ def main() -> None:
         daemon=True,
     ).start()
 
+    # ---------- IR -> BRGB control ----------
+    def brgb_apply(action_name: str, fn) -> None:
+        with brgb_lock:
+            fn()
+            st = brgb.get()
+            on = brgb.isOn()
+        emit("actuator", "BRGB", st, None, bool(rgb_cfg.get("simulated", default_simulated)))
+        print(f"[IR] {action_name} -> r={st['r']} g={st['g']} b={st['b']} on={on}")
+
+    def brgb_toggle() -> None:
+        def _do():
+            if brgb.isOn():
+                brgb.off()
+            else:
+                brgb.on()
+        brgb_apply("TOGGLE", _do)
+
+    # Mapiranje IR tastera (nazivi koje IRReceiver vraća) -> akcije
+    IR_TO_RGB = {
+        "OK": "TOGGLE",
+        "#": "TOGGLE",
+        "1": "RED",
+        "2": "GREEN",
+        "3": "BLUE",
+        "4": "WHITE",
+        "5": "OFF",
+        "6": "YELLOW",
+        "7": "CYAN",
+        "8": "MAGENTA",
+        "0": "OFF",
+        "*": "OFF",
+        "UP": "WHITE",
+        "DOWN": "OFF",
+        "LEFT": "RED",
+        "RIGHT": "BLUE",
+    }
+
+    def handle_ir(code: str) -> None:
+        key = str(code).strip().upper()
+        action = IR_TO_RGB.get(key)
+
+        # Uvek emituj IR događaj da možeš da pratiš šta stiže
+        emit("sensor", "IR", key, None, bool(ir_cfg.get("simulated", default_simulated)))
+
+        if not action:
+            return
+
+        if action == "TOGGLE":
+            brgb_toggle()
+            return
+        if action == "OFF":
+            brgb_apply("OFF", brgb.off)
+            return
+        if action == "WHITE":
+            brgb_apply("WHITE", brgb.white)
+            return
+        if action == "RED":
+            brgb_apply("RED", brgb.red)
+            return
+        if action == "GREEN":
+            brgb_apply("GREEN", brgb.green)
+            return
+        if action == "BLUE":
+            brgb_apply("BLUE", brgb.blue)
+            return
+        if action == "YELLOW":
+            brgb_apply("YELLOW", brgb.yellow)
+            return
+        if action == "CYAN":
+            brgb_apply("CYAN", brgb.cyan)
+            return
+        if action == "MAGENTA":
+            brgb_apply("MAGENTA", brgb.magenta)
+            return
+
     # ---------- IR thread ----------
     threading.Thread(
         target=run_ir_loop,
         args=(
             float(ir_cfg.get("delay_sec", 0.25)),
             float(ir_cfg.get("burst_prob", 0.06)),
-            lambda c: emit("sensor", "IR", str(c), None, bool(ir_cfg.get("simulated", default_simulated))),
+            lambda c: handle_ir(str(c)),  # <= ovde ide kontrola BRGB-a
             stop_event,
             bool(ir_cfg.get("simulated", default_simulated)),
             int(ir_cfg.get("pin", 17)),
@@ -265,24 +346,24 @@ def main() -> None:
             choice = input("> ").strip()
 
             if choice == "1":
-                st = brgb.get()
+                with brgb_lock:
+                    st = brgb.get()
+                    on = brgb.isOn()
                 print("\n--- STATUS ---")
-                print(f"BRGB: {'ON' if brgb.isOn() else 'OFF'}  r={st['r']} g={st['g']} b={st['b']}")
+                print(f"BRGB: {'ON' if on else 'OFF'}  r={st['r']} g={st['g']} b={st['b']}")
                 print(f"LCD:  {'ON' if lcd_enabled else 'OFF'}")
 
             elif choice == "2":
-                if brgb.isOn():
-                    brgb.off()
-                else:
-                    brgb.on()
-                emit("actuator", "BRGB", brgb.get(), None, bool(rgb_cfg.get("simulated", default_simulated)))
-                print(f"[BRGB] {'ON' if brgb.isOn() else 'OFF'}")
+                brgb_toggle()
 
             elif choice == "3":
                 try:
                     r, g, b = map(int, input("r g b (0/1): ").split())
-                    brgb.set(bool(r), bool(g), bool(b))
-                    emit("actuator", "BRGB_SET", brgb.get(), None, bool(rgb_cfg.get("simulated", default_simulated)))
+
+                    def _do():
+                        brgb.set(bool(r), bool(g), bool(b))
+
+                    brgb_apply(f"SET {r} {g} {b}", _do)
                     print(f"[BRGB] SET r={bool(r)} g={bool(g)} b={bool(b)}")
                 except Exception:
                     print("Invalid input. Example: 1 0 1")

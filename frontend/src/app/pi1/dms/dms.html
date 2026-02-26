@@ -1,0 +1,37 @@
+<div class="keypad-shell" [class.hotspot]="true" [class.el]="true">
+
+  <!-- Header bar -->
+  <div class="keypad-header">
+    <span class="keypad-status-dot" [class.ok]="lastOk === true" [class.err]="lastOk === false"></span>
+  </div>
+
+  <!-- PIN dot display -->
+  <div class="pin-display" [class.shake]="shake">
+    <div
+      *ngFor="let i of dots"
+      class="pin-dot"
+      [class.filled]="i < pin.length"
+      [class.ok]="lastOk === true"
+      [class.err]="lastOk === false"
+    ></div>
+  </div>
+
+  <!-- Status message -->
+  <div class="status-msg" [class.ok]="lastOk === true" [class.err]="lastOk === false">
+    <ng-container *ngIf="lastOk === true">✓ Access granted</ng-container>
+    <ng-container *ngIf="lastOk === false">✗ {{ lastError || 'PIN rejected' }}</ng-container>
+    <ng-container *ngIf="lastOk === null">&nbsp;</ng-container>
+  </div>
+
+  <!-- Numpad grid -->
+  <div class="numpad" [class.busy]="busy">
+    <button class="key" *ngFor="let d of ['1','2','3','4','5','6','7','8','9']"
+      (click)="pressDigit(d)" [disabled]="busy || pin.length >= 4">
+      {{ d }}
+    </button>
+    <button class="key clear-key" (click)="clear()" [disabled]="busy">C</button>
+    <button class="key" (click)="pressDigit('0')" [disabled]="busy || pin.length >= 4">0</button>
+    <button class="key back-key" (click)="backspace()" [disabled]="busy || pin.length === 0">⌫</button>
+  </div>
+
+</div>

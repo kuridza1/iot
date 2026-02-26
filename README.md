@@ -1,29 +1,32 @@
 # PI1 Smart Door — Run Instructions
 
 ## 1) Pokretanje na Raspberry Pi
+broker: "192.168.107.132"
 
-ssh korisnik@hostname (hostname ce nam dati)
-
+ssh student@192.168.107.147
 mkdir -p ~/tojest
-
 exit
- 
-scp -r ./iot(ili pi1)/* korisnik@hostname:/home/korisnik/tojest/
 
-ssh korisnik@hostname
+// idi u iot folder
+scp -r ./pi1 student@192.168.107.147:/home/student/tojest/
+scp -r ./helper student@192.168.107.147:/home/student/tojest/
+scp -r ./actuators student@192.168.107.147:/home/student/tojest/
+scp -r ./sensors student@192.168.107.147:/home/student/tojest/
+scp -r ./security student@192.168.107.147:/home/student/tojest/
+scp -r ./mqtt student@192.168.107.147:/home/student/tojest/
 
+ssh student@192.168.107.147
 cd ~/tojest
 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-python3 device/main.py
+py -m pi1.main
+py -m pi2.main
+py -m pi3.main
 
 // za izlazak
 sudo shutdown -h now
 
-BROKER 192.168.107.132
+KAMERA:
+mjpg_streamer -i "input_uvc.so" -o "output_http.so -p 8080 -w /usr/local/share/mjpg-streamer/www"
 
 ---
 
@@ -80,18 +83,6 @@ docker ps
 
 ---
 
-## 5) Grafana (automatski)
-
-1. Otvori http://localhost:3000
-2. Login:
-   - admin / admin (ili vrednosti iz .env)
-3. Otvori dashboard: PI1 Smart Door
-
-Ako dashboard nije učitan:
-docker compose restart grafana
-
----
-
 ## 6) Pokretanje server aplikacije
 
 cd server  
@@ -99,34 +90,4 @@ python app.py
 
 ---
 
-## 7) Pokretanje device aplikacije (Raspberry Pi)
 
-1. SSH:
-   ssh pi@<PI_IP>
-2. Install:
-   cd device  
-3. Proveri settings.json:
-   - mqtt.host = IP adresa servera
-   - mqtt.port = 1883
-4. Start:
-   python main.py
-
----
-
-## 8) Tipičan redosled pokretanja
-
-1. infra: docker compose up -d
-2. server: python app.py
-3. device: python main.py
-4. Grafana: dashboard live
-
----
-
-## 9) Brzi troubleshooting
-
-- Grafana prazan dashboard:
-  - proveri Last 15m i auto refresh 5s
-- Nema podataka u Influx:
-  - proveri server log i token
-- MQTT ne radi:
-  - device ne sme koristiti localhost

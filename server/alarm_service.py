@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 import time
 
 from influx_writer import InfluxWriter
@@ -11,18 +11,18 @@ from mqtt_commands import MqttCommandPublisher
 @dataclass
 class AlarmState:
     alarm_active: bool = False
+    alarm_reason: Optional[str] = None
+    alarm_ts: float = 0.0
+
     people_inside: int = 0
 
-    # Security system mode
-    armed: bool = False                  # system active (armed)
-    arming_until_ts: Optional[float] = None  # when arming completes (10s delay)
-    entry_until_ts: Optional[float] = None   # deadline to enter PIN after door event
+    # PI-side state machine (ALARM_STATE)
+    system_state: Optional[str] = None
+    system_ts: float = 0.0
 
-    # DS hold detection: DS1/DS2 stays ON longer than 5s => alarm until DS changes
-    ds_on_since: Dict[str, float] = field(default_factory=dict)
-
-    # Track last alarm reason (optional, helps selective auto-clear)
-    last_alarm_reason: Optional[str] = None
+    # PI-side buzzer actuator state (DB)
+    db_on: Optional[bool] = None
+    db_ts: float = 0.0
 
 
 class AlarmService:
@@ -61,9 +61,20 @@ class AlarmService:
             self._state[device] = AlarmState()
         return self._state[device]
 
-    # ----------------------------
-    # Influx writes
-    # ----------------------------
+    def snapshot(self, device: str) -> Dict[str, Any]:
+        st = self._get(device)
+        return {
+            "device": device,
+            "alarm_active": bool(st.alarm_active),
+            "alarm_reason": st.alarm_reason,
+            "alarm_ts": st.alarm_ts,
+            "people_inside": int(st.people_inside),
+            "system_state": st.system_state,
+            "system_ts": st.system_ts,
+            "db_on": st.db_on,
+            "db_ts": st.db_ts,
+        }
+
     def _write_alarm_event(self, device: str, device_name: str, active: bool, reason: str | None = None) -> None:
         ts = time.time()
         self._influx.write_event({
@@ -130,16 +141,17 @@ class AlarmService:
     # ----------------------------
     def set_alarm(self, device: str, device_name: str, active: bool, reason: str | None = None) -> None:
         st = self._get(device)
-        if st.alarm_active == active:
+        if st.alarm_active == bool(active) and (reason is None or reason == st.alarm_reason):
             return
 
-        st.alarm_active = active
-        st.last_alarm_reason = reason
+        st.alarm_active = bool(active)
+        st.alarm_reason = str(reason) if reason else None
+        st.alarm_ts = time.time()
 
-        # MQTT command (for DB / buzzer / whatever PI should do)
+        # pošalji PI-u komandu (npr. da upali/gasi buzzer ili svoj alarm flow)
         self._cmd.publish_alarm(device, active, reason=reason)
 
-        # Persist + Grafana
+        # upiši u Influx
         self._write_alarm_event(device, device_name, active, reason=reason)
 
     def set_armed(self, device: str, device_name: str, armed: bool, reason: str | None = None) -> None:
@@ -206,13 +218,9 @@ class AlarmService:
         value = payload.get("value", None)
 
         st = self._get(device)
+        now = time.time()
 
-        # apply time-based transitions on every incoming event
-        self._tick(device, device_name, st)
-
-        # ----------------------------
-        # People count (server caches)
-        # ----------------------------
+        # cache za UI
         if code == "PEOPLE_INSIDE":
             try:
                 st.people_inside = int(float(value))
@@ -220,72 +228,33 @@ class AlarmService:
                 pass
             return
 
-        # ----------------------------
-        # Arm request from DMS
-        # ----------------------------
-        if code == "DMS_ARM_PIN":
-            if str(value) == self._alarm_pin and not st.armed:
-                self.request_arm(device, device_name)
+        if code == "ALARM_STATE":
+            st.system_state = str(value)
+            st.system_ts = now
             return
 
-        # ----------------------------
-        # PIN entered: disarm + clear alarm + stop entry delay
-        # ----------------------------
-        if code == "DMS_PIN":
-            if str(value) == self._alarm_pin:
-                # spec: PIN disables alarm and deactivates system
-                self.disarm_and_clear(device, device_name, reason="PIN_OK")
+        if code == "DB":
+            st.db_on = bool(value)
+            st.db_ts = now
             return
 
-        # ----------------------------
-        # PIR motion: alarm only when empty (per your current rule)
-        # ----------------------------
+        # logika: PIR pali alarm samo kad je prazno
         if code in ("DPIR1", "DPIR2", "DPIR3"):
             motion = bool(value)
             if motion and (st.people_inside <= 0) and (not st.alarm_active):
                 self.set_alarm(device, device_name, True, reason="MOTION_WHEN_EMPTY")
             return
 
-        # ----------------------------
-        # Door sensors: DS1/DS2 logic
-        # - DS on >5s => ALARM until DS changes (state flips)
-        # - If armed and DS triggers => start entry delay; if PIN not entered => alarm on timeout
-        # ----------------------------
-        if code in ("DS1", "DS2"):
-            is_on = bool(value)
-            now = time.time()
-
-            if is_on:
-                # start / keep hold timer
-                if code not in st.ds_on_since:
-                    st.ds_on_since[code] = now
-
-                # armed -> start entry delay window if not already started
-                if st.armed and not st.alarm_active and st.entry_until_ts is None:
-                    st.entry_until_ts = now + self.ENTRY_DELAY_SEC
-                    self._write_entry_delay_event(device, device_name, True)
-
-                # if held ON long enough -> alarm until it changes
-                started = st.ds_on_since.get(code)
-                if started is not None and (now - started) >= self.DS_UNLOCKED_HOLD_SEC:
-                    if not st.alarm_active:
-                        self.set_alarm(device, device_name, True, reason=f"UNLOCKED_{code}_GT_5S")
-
-            else:
-                # DS changed back -> clear hold timer
-                st.ds_on_since.pop(code, None)
-
-                # If alarm was caused by unlocked door hold, you can auto-clear when door changes.
-                # Spec: "ALARM dok se stanje DS-a ne promeni" -> on change, turn off.
-                if st.alarm_active and (st.last_alarm_reason or "").startswith("UNLOCKED_"):
-                    self.set_alarm(device, device_name, False, reason=f"{code}_CHANGED")
-
-                # Also end entry delay if door returned to normal (optional; you may keep it running)
-                if st.entry_until_ts is not None:
-                    st.entry_until_ts = None
-                    self._write_entry_delay_event(device, device_name, False)
-
+        # DMS_PIN varijanta (ako ti PI šalje baš DMS_PIN sa celim pin-om)
+        if code == "DMS_PIN":
+            if st.alarm_active and str(value) == self._alarm_pin:
+                self.set_alarm(device, device_name, False, reason="PIN_OK")
             return
 
-        # Any other codes: ignore
-        return
+    def submit_pin(self, device: str, device_name: str, pin: str, source: str = "FE") -> bool:
+        ok = str(pin) == self._alarm_pin
+        if ok:
+            # po specifikaciji: unosom PIN-a alarm se isključuje
+            if self._get(device).alarm_active:
+                self.set_alarm(device, device_name, False, reason=f"PIN_OK:{source}")
+        return ok

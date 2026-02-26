@@ -8,94 +8,120 @@ from actuators.button import Button
 from actuators.buzzer import Buzzer
 from actuators.led import Led
 
-from actuators.button import Button
-from actuators.buzzer import Buzzer
-from actuators.led import Led
-from mqtt.mqtt_publisher import MqttBatchPublisher
-from sensors.dms import run_membrane_loop
-from sensors.ultrasonic import run_ultrasonic_loop
-from sensors.pir import run_pir_loop
-from helper.settings import load_settings
-from helper.telemetry import *
 from helper.helper import GPIO
+from helper.settings import load_settings
+from mqtt.mqtt_publisher import MqttBatchPublisher
+
+from security.alarm_controller import AlarmController
+from security.config import load_alarm_pin, load_alarm_params
+from helper.emit import make_emitter
+
+from pi1.loops import start_ds1_loop, start_pir_loop, start_dus_loop, start_dms_loop
+from pi1.cmd_listener import PiCmdListener
 
 
 def ts_str() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
 
 
-def print_menu() -> None:
-    print("\n==== PI1 SMART DOOR ====")
-    print("1) Status")
-    print("2) Toggle Door Light (DL)")
-    print("3) Toggle Buzzer (DB)")
-    print("4) Beep (DB)")
-    print("5) Toggle Door Button (DS1)")
-    print("0) Exit")
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
 def main() -> None:
-    cfg: Dict[str, Any] = load_settings("pi1/settings.json")
+    cfg = load_settings("pi1/settings.json")
+    stop_event = threading.Event()
 
     device_cfg = cfg.get("device", {})
     pi_id = str(device_cfg.get("pi_id", "PI1"))
     device_name = str(device_cfg.get("device_name", "Device"))
-    default_simulated = bool(device_cfg.get("default_simulated", True))
 
-    mqtt_cfg = cfg.get("mqtt", {"enabled": False})
-    publisher = MqttBatchPublisher(mqtt_cfg)
+    publisher = MqttBatchPublisher(cfg.get("mqtt", {}))
     publisher.start()
 
-    stop_event = threading.Event()
-    threads: list[threading.Thread] = []
+    emit, safe_print, set_suppress = make_emitter(
+        publisher, device=pi_id, device_name=device_name, ts_str=ts_str
+    )
 
-    # ============================================================
-    # ACTUATORS
-    # ============================================================
-
-    led_cfg = cfg.get("DL", {"simulated": default_simulated, "pin": 21})
-    buz_cfg = cfg.get("DB", {"simulated": default_simulated, "pin": 22})
-    btn_cfg = cfg.get("DS1", {"simulated": default_simulated, "pin": 23})
+    led_cfg = cfg.get("DL", {"simulated": True})
+    buz_cfg = cfg.get("DB", {"simulated": True})
+    btn_cfg = cfg.get("DS1", {"simulated": True})
 
     led = Led(**led_cfg)
     buzzer = Buzzer(**buz_cfg)
     button = Button(**btn_cfg)
 
-    def emit(kind: str, code: str, value, unit: Optional[str], simulated: bool):
-        ev = TelemetryEvent(
-            device=pi_id,
-            device_name=device_name,
-            kind=kind,
-            code=code,
-            value=value,
-            unit=unit,
-            simulated=simulated,
-            ts=now_ts(),
-        )
-        publisher.enqueue(ev)
-        print(f"[{ts_str()}] {code}: {value}")
+    pin = load_alarm_pin(cfg)
+    exit_delay, entry_delay, door_held = load_alarm_params(cfg)
 
-    # ============================================================
-    # PEOPLE COUNT STATE
-    # ============================================================
+    def close_doors():
+        if bool(btn_cfg.get("simulated", True)):
+            if button.isOn():
+                button.off()
+            emit("security", "DOOR_FORCE_CLOSED", "DS1", None, True)
+
+    alarm = AlarmController(
+        buzzer=buzzer,
+        emit=emit,
+        pin=pin,
+        exit_delay_sec=exit_delay,
+        entry_delay_sec=entry_delay,
+        close_doors_cb=close_doors,
+    )
+
+    # Emit init state odmah
+    emit("security", "ALARM_STATE", alarm.state.value, None, True)
+    emit("actuator", "DB", buzzer.isOn(), None, bool(buz_cfg.get("simulated", True)))
+
+    # ----- MQTT command listener (front -> server -> mqtt -> pi) -----
+    mqtt_cfg = cfg.get("mqtt", {})
+    broker = str(mqtt_cfg.get("broker", "localhost"))
+    port = int(mqtt_cfg.get("port", 1883))
+
+    # mora da se poklopi sa server MQTT_TOPIC_PREFIX
+    topic_prefix = str(mqtt_cfg.get("topic_prefix", "devices"))
+
+    cmd_listener = PiCmdListener(
+        broker=broker,
+        port=port,
+        client_id=f"{pi_id}-cmd-listener",
+        topic_prefix=topic_prefix,
+        device=pi_id,
+        alarm=alarm,
+        led=led,
+        buzzer=buzzer,
+        button=button,
+        emit=emit,
+        stop_event=stop_event,
+        led_simulated=bool(led_cfg.get("simulated", True)),
+        buz_simulated=bool(buz_cfg.get("simulated", True)),
+        btn_simulated=bool(btn_cfg.get("simulated", True)),
+    )
+    cmd_listener.start()
+
+    # ---------- DUS window + people count ----------
+    state_lock = threading.Lock()
+    people_inside = 0
+    last_count_ts = 0.0
+    dus_hist = deque()
 
     THRESH_CM = 50.0
     DUS_WINDOW_SEC = 3.0
     COOLDOWN_SEC = 2.5
 
-    dus_hist = deque()      # (timestamp, distance)
-    people_inside = 0
-    last_count_ts = 0.0
+    def on_dus1(d: Optional[float]) -> None:
+        emit("sensor", "DUS1", d, "cm", True)
+        now = time.time()
+        cutoff = now - DUS_WINDOW_SEC
+        with state_lock:
+            if d is not None:
+                dus_hist.append((now, float(d)))
+            while dus_hist and dus_hist[0][0] < cutoff:
+                dus_hist.popleft()
 
-    state_lock = threading.Lock()
-
-    # ============================================================
-    # LIGHT AUTO-OFF (10s)
-    # ============================================================
+    def dus_zone() -> Optional[str]:
+        with state_lock:
+            ds = [d for _, d in dus_hist]
+        if len(ds) < 2:
+            return None
+        m = statistics.median(ds)
+        return "SMALL" if m < THRESH_CM else "BIG"
 
     AUTO_ON_SEC = 10.0
     light_timer: Optional[threading.Timer] = None
@@ -104,51 +130,17 @@ def main() -> None:
     def _dl_off():
         if led.isOn():
             led.off()
-            emit("actuator", "DL", False, None, led_cfg["simulated"])
-
-    # ============================================================
-    # DUS CALLBACK
-    # ============================================================
-
-    def on_dus1(d: Optional[float]) -> None:
-        emit("sensor", "DUS1", d, "cm", True)
-
-        now = time.time()
-        cutoff = now - DUS_WINDOW_SEC
-
-        with state_lock:
-            if d is not None:
-                dus_hist.append((now, float(d)))
-
-            while dus_hist and dus_hist[0][0] < cutoff:
-                dus_hist.popleft()
-
-    def dus_zone() -> Optional[str]:
-        with state_lock:
-            ds = [d for _, d in dus_hist]
-
-        if len(ds) < 2:
-            return None
-
-        m = statistics.median(ds)
-        return "SMALL" if m < THRESH_CM else "BIG"
-
-    # ============================================================
-    # PIR CALLBACK
-    # ============================================================
+            emit("actuator", "DL", False, None, bool(led_cfg.get("simulated", True)))
 
     def on_pir(motion: bool) -> None:
         nonlocal light_timer, people_inside, last_count_ts
-
         emit("sensor", "DPIR1", motion, None, True)
-
         if not motion:
             return
 
-        # ---------- LIGHT ----------
         if not led.isOn():
             led.on()
-            emit("actuator", "DL", True, None, led_cfg["simulated"])
+            emit("actuator", "DL", True, None, bool(led_cfg.get("simulated", True)))
 
         with timer_lock:
             if light_timer:
@@ -157,7 +149,6 @@ def main() -> None:
             light_timer.daemon = True
             light_timer.start()
 
-        # ---------- ANTI DOUBLE COUNT ----------
         now = time.time()
         with state_lock:
             if now - last_count_ts < COOLDOWN_SEC:
@@ -169,155 +160,65 @@ def main() -> None:
             return
 
         enter_exit = "ENTER" if zone == "SMALL" else "EXIT"
-
         with state_lock:
             if enter_exit == "ENTER":
                 people_inside += 1
             else:
                 people_inside = max(0, people_inside - 1)
-
             last_count_ts = now
             current = people_inside
 
         emit("sensor", "DOOR_DIR", enter_exit, None, True)
         emit("sensor", "PEOPLE_INSIDE", current, "count", True)
 
-    # ============================================================
-    # THREADS — PIR
-    # ============================================================
-    def run_button_loop(delay_sec: float, stop_event: threading.Event) -> None:
-        last = None
-        while not stop_event.is_set():
-            curr = button.isOn()  # mora da čita GPIO.input interno
-            if last is None:
-                last = curr
-            elif curr != last:
-                last = curr
-                emit("sensor", "DS1", curr, None, bool(btn_cfg.get("simulated", default_simulated)))
-            time.sleep(delay_sec)
+    # ---------- DMS mapping + buffer ----------
+    dms_map = cfg.get("DMS_MAP", {})
+    pin_buf_lock = threading.Lock()
+    pin_buf: list[str] = []
 
-    t = threading.Thread(target=run_button_loop, args=(0.02, stop_event), daemon=True)
-    t.start()
-    threads.append(t)
+    def _pin_append(d: str) -> Optional[str]:
+        with pin_buf_lock:
+            pin_buf.append(d)
+            if len(pin_buf) < 4:
+                return None
+            s = "".join(pin_buf[:4])
+            pin_buf.clear()
+            return s
 
-    dpir_cfg = cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": True})
+    def on_dms_pin(pin_code: int) -> None:
+        digit = None
+        if isinstance(dms_map, dict) and dms_map:
+            digit = dms_map.get(str(pin_code), dms_map.get(pin_code))
 
-    t = threading.Thread(
-        target=run_pir_loop,
-        args=(
-            dpir_cfg["delay_sec"],
-            on_pir,
-            stop_event,
-            dpir_cfg["simulated"],
-            dpir_cfg.get("pin", 17),
-            dpir_cfg.get("pull", "down"),
-            dpir_cfg.get("active_high", True),
-        ),
-        daemon=True,
-    )
-    t.start()
-    threads.append(t)
+        if digit is None:
+            emit("sensor", "DMS_PIN", pin_code, None, True)
+            return
 
-    # ============================================================
-    # THREADS — DUS
-    # ============================================================
+        d = str(digit)
+        emit("sensor", "DMS_KEY", d, None, True)
 
-    dus_cfg = cfg.get("DUS1", {"delay_sec": 2.0, "simulated": True})
+        if not d.isdigit() or len(d) != 1:
+            return
 
-    t = threading.Thread(
-        target=run_ultrasonic_loop,
-        args=(
-            dus_cfg["delay_sec"],
-            on_dus1,
-            stop_event,
-            dus_cfg["simulated"],
-            dus_cfg.get("trig_pin", 5),
-            dus_cfg.get("echo_pin", 6),
-            
-        ),
-        daemon=True,
-    )
-    t.start()
-    threads.append(t)
+        candidate = _pin_append(d)
+        if candidate is None:
+            return
 
-    # ============================================================
-    # THREADS — DMS
-    # ============================================================
+        alarm.submit_pin(candidate, source="DMS")
 
-    dms_cfg = cfg.get(
-        "DMS",
-        {"delay_sec": 0.05, "simulated": True, "rows": [6, 13, 19, 26], "cols": [12, 16, 20, 21]},
-    )
-
-    t = threading.Thread(
-        target=run_membrane_loop,
-        args=(
-            dms_cfg["rows"],
-            dms_cfg["cols"],
-            dms_cfg["delay_sec"],
-            lambda pin: emit("sensor", "DMS_PIN", pin, None, True),
-            stop_event,
-            dms_cfg["simulated"],
-        ),
-        daemon=True,
-    )
-    t.start()
-    threads.append(t)
-
-    # ============================================================
-    # CLI
-    # ============================================================
-
-    print_menu()
+    # ---------- loops ----------
+    threads = []
+    threads.append(start_ds1_loop(button, alarm, emit, btn_cfg, 0.02, stop_event, door_held))
+    threads.append(start_pir_loop(cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": True}), on_pir, stop_event))
+    threads.append(start_dus_loop(cfg.get("DUS1", {"delay_sec": 2.0, "simulated": True}), on_dus1, stop_event))
+    threads.append(start_dms_loop(cfg.get("DMS", {}), on_dms_pin, stop_event))
 
     try:
         while not stop_event.is_set():
-            raw = input("> ").strip()
-
-            if raw == "1":
-                print(f"People inside: {people_inside}")
-                emit("sensor", "PEOPLE_INSIDE", int(people_inside), "persons", True)
-
-            elif raw == "2":
-                if led.isOn():
-                    led.off()
-                    emit("actuator", "DL", False, None,
-                        bool(led_cfg.get("simulated", default_simulated)))
-                else:
-                    led.on()
-                    emit("actuator", "DL", True, None,
-                        bool(led_cfg.get("simulated", default_simulated)))
-
-            elif raw == "3":
-                if buzzer.isOn():
-                    buzzer.off()
-                    emit("actuator", "DB", False, None,
-                        bool(buz_cfg.get("simulated", default_simulated)))
-                else:
-                    buzzer.on()
-                    emit("actuator", "DB", True, None,
-                        bool(buz_cfg.get("simulated", default_simulated)))
-
-            elif raw == "4":
-                buzzer.beep(1)
-                emit("actuator", "DB_BEEP", 1.0, "sec",
-                    bool(buz_cfg.get("simulated", default_simulated)))
-
-            elif raw == "5":
-                if button.isOn():
-                    button.off()
-                    emit("actuator", "DS1", False, None,
-                        bool(btn_cfg.get("simulated", default_simulated)))
-                else:
-                    button.on()
-                    emit("actuator", "DS1", True, None,
-                        bool(btn_cfg.get("simulated", default_simulated)))
-
-            elif raw == "0":
-                stop_event.set()
-
+            time.sleep(1)
     finally:
         stop_event.set()
+        cmd_listener.stop()
         publisher.stop()
         GPIO.cleanup()
 

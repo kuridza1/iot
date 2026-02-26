@@ -1,13 +1,26 @@
-<div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:16px; align-items:start;">
+<div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:10px; align-items:start;">
+
+  <!-- Floorplan -->
   <div>
-    <app-floorplan
-      [(selectedPi)]="selectedPi"
-      [(selectedElement)]="selectedElement"
-    ></app-floorplan>
+    <app-floorplan [(selectedPi)]="selectedPi"></app-floorplan>
   </div>
 
-    <div style="margin-top:16px;">
-      <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
-      <app-timer></app-timer>
-    </div>
+  <!-- Grafana -->
+  <div style="margin-top:16px;">
+    <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
+  </div>
+
+  <!-- PI1 widgets -->
+  <div *ngIf="selectedPi === 'PI1'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+    <app-dms [apiBase]="apiBase" device="PI1"></app-dms>
+    <app-security-status [apiBase]="apiBase" device="PI1"></app-security-status>
+    <app-ds1 [apiBase]="apiBase" device="PI1"></app-ds1>
+    <app-web-cam></app-web-cam>
+  </div>
+  
+  <!-- PI3 widgets -->
+  <div *ngIf="selectedPi === 'PI3'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+    <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>
+    <app-lcd [apiBase]="apiBase" device="PI3"></app-lcd>
+  </div>
 </div>

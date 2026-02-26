@@ -1,8 +1,13 @@
+# server.py
 from __future__ import annotations
 
-import queue
 import time
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Optional
+
+from flask import Flask, Response, jsonify, request
+from flask_cors import CORS
+import requests
+from flask_socketio import SocketIO, emit, join_room, leave_room
 
 from flask import Flask, Response, json, jsonify, request, stream_with_context
 from flask_cors import CORS
@@ -12,13 +17,37 @@ from mqtt_to_influx import MqttToInfluxService
 from mqtt_commands import MqttCommandPublisher
 from alarm_service import AlarmService
 from config import (
-    INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN, INFLUX_URL,
-    MQTT_CLIENT_ID, MQTT_BROKER, MQTT_PORT, MQTT_TOPIC_FILTER,
-    MQTT_TOPIC_PREFIX, ALARM_PIN
+    INFLUX_BUCKET,
+    INFLUX_ORG,
+    INFLUX_TOKEN,
+    INFLUX_URL,
+    MQTT_CLIENT_ID,
+    MQTT_BROKER,
+    MQTT_PORT,
+    MQTT_TOPIC_FILTER,
+    MQTT_TOPIC_PREFIX,
+    ALARM_PIN,
 )
 
+# -------------------- Flask + CORS --------------------
 app = Flask(__name__)
-CORS(app)
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:4200"]}},
+    supports_credentials=False,
+)
+
+# -------------------- Socket.IO --------------------
+# IMPORTANT:
+# - Threading mode is the most robust with your current codebase (threads + blocking MQTT/IO).
+# - Install: pip install flask-socketio
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=["http://localhost:4200"],
+    async_mode="threading",
+)
+
+# -------------------- Core services --------------------
 influx = InfluxWriter(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 reader = InfluxReader(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 
@@ -31,41 +60,66 @@ cmd_pub = MqttCommandPublisher(
 
 alarm = AlarmService(influx=influx, cmd=cmd_pub, alarm_pin=ALARM_PIN)
 
-
-latest: Dict[Tuple[str, str], Dict[str, Any]] = {}
-subs: List[queue.Queue] = []
-
-
-def _to_dict(ev: Any) -> Dict[str, Any]:
-    if isinstance(ev, dict):
-        return ev
-    if hasattr(ev, "__dict__"):
-        return dict(ev.__dict__)
-    return {"value": ev}
+# -------------------- Helpers --------------------
+def _now_ts() -> float:
+    return time.time()
 
 
-def _publish_update(ev_dict: Dict[str, Any]) -> None:
-    device = str(ev_dict.get("device", "unknown"))
-    code = str(ev_dict.get("code", ""))
-    if code:
-        latest[(device, code)] = ev_dict
+def _snapshot_with_device(device: str) -> Dict[str, Any]:
+    d = str(device).strip()
+    snap = alarm.snapshot(d)
+    if not isinstance(snap, dict):
+        snap = {"data": snap}
+    snap = dict(snap)
+    snap["device"] = d
+    return snap
 
-    dead: List[queue.Queue] = []
-    for q in subs:
-        try:
-            q.put_nowait(ev_dict)
-        except Exception:
-            dead.append(q)
-    for q in dead:
-        try:
-            subs.remove(q)
-        except ValueError:
-            pass
 
-def on_event_all(ev: Any) -> None:
-    d = _to_dict(ev)
-    alarm.on_event(d)
-    _publish_update(d)
+def ws_emit_evt(evt: Dict[str, Any]) -> None:
+    evt = dict(evt)
+    evt.setdefault("ts", _now_ts())
+    device = str(evt.get("device", "")).strip()
+    if not device:
+        return
+    socketio.emit("evt", evt, room=device)
+
+
+def ws_emit_snapshot(device: str) -> None:
+    device = str(device).strip()
+    if not device:
+        return
+    socketio.emit("snapshot", _snapshot_with_device(device), room=device)
+
+
+def ws_emit_pin_result(device: str, ok: bool, error: Optional[str] = None) -> None:
+    device = str(device).strip()
+    msg: Dict[str, Any] = {"device": device, "ok": bool(ok), "ts": _now_ts()}
+    if error:
+        msg["error"] = error
+    socketio.emit("pin_result", msg, room=device)
+
+
+def ws_emit_cmd_result(
+    device: str,
+    cmd: str,
+    ok: bool,
+    error: Optional[str] = None,
+    value: Any = None,
+) -> None:
+    device = str(device).strip()
+    msg: Dict[str, Any] = {"device": device, "cmd": str(cmd), "ok": bool(ok), "ts": _now_ts()}
+    if error:
+        msg["error"] = error
+    if value is not None:
+        msg["value"] = value
+    socketio.emit("cmd_result", msg, room=device)
+
+
+# -------------------- MQTT -> server callback --------------------
+def on_event(payload: Dict[str, Any]) -> None:
+    alarm.on_event(payload)
+    ws_emit_evt(payload)
+
 
 bridge = MqttToInfluxService(
     broker=MQTT_BROKER,
@@ -73,31 +127,49 @@ bridge = MqttToInfluxService(
     topic_filter=MQTT_TOPIC_FILTER,
     client_id=MQTT_CLIENT_ID,
     influx=influx,
-    on_event=on_event_all,
+    on_event=on_event,
 )
 bridge.start()
 
+# -------------------- Socket.IO events --------------------
+@socketio.on("connect")
+def on_connect():
+    device = str(request.args.get("device", "")).strip()
+    if device:
+        join_room(device)
+        emit("snapshot", _snapshot_with_device(device))
 
+
+@socketio.on("set_device")
+def on_set_device(data):
+    data = data or {}
+    device = str(data.get("device", "PI1")).strip()
+
+    # leave previous device rooms (keep sid)
+    try:
+        rooms = list(getattr(request, "rooms", []))
+        for r in rooms:
+            if r and r != request.sid:
+                leave_room(r)
+    except Exception:
+        pass
+
+    join_room(device)
+    emit("snapshot", _snapshot_with_device(device))
+
+
+# -------------------- HTTP routes --------------------
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
 
 
-@app.post("/alarm/disarm")
-def alarm_disarm():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    pin = str(data.get("pin", ""))
-
-    if pin != ALARM_PIN:
-        return jsonify({"error": "bad pin"}), 403
-
-    alarm.set_alarm(device, device_name=device, active=False, reason="WEB_PIN_OK")
-    alarm.set_armed(device, device_name=device, armed=False, reason="WEB_PIN_OK")
-    return jsonify({"ok": True})
+@app.get("/state")
+def state():
+    device = request.args.get("device", "PI1")
+    return jsonify(_snapshot_with_device(device))
 
 
-# NOTE: this endpoint is numeric-only (your timer "4SD" is a string)
 @app.get("/telemetry/latest")
 def telemetry_latest():
     device = request.args.get("device", "PI2")
@@ -109,84 +181,75 @@ def telemetry_latest():
     return jsonify({"device": device, "code": code, "value": v})
 
 
-@app.get("/telemetry/state")
-def telemetry_state():
-    device = request.args.get("device", "PI2")
-    codes_raw = request.args.get("codes", "")
-    if not codes_raw:
-        return jsonify({"error": "missing codes"}), 400
+@app.post("/cmd")
+def cmd():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "")).strip()
+    cmd_name = str(data.get("cmd", "")).strip()
+    value = data.get("value", None)
 
-    codes = [c.strip() for c in codes_raw.split(",") if c.strip()]
-    out: Dict[str, Any] = {}
-    for code in codes:
-        out[code] = latest.get((device, code))
-    return jsonify({"device": device, "state": out})
+    if not device or not cmd_name:
+        ws_emit_cmd_result(device or "?", cmd_name or "?", False, "missing device/cmd")
+        return jsonify({"error": "missing device/cmd"}), 400
+
+    allowed = {
+        "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
+        "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
+        "PI3_LCD_TOGGLE", "PI3_LCD_TEXT", "PI3_LCD_CLEAR",
+    }
+    if cmd_name not in allowed:
+        ws_emit_cmd_result(device, cmd_name, False, "cmd not allowed")
+        return jsonify({"error": "cmd not allowed"}), 400
+
+    cmd_pub.publish(device=device, cmd=cmd_name, value=value)
+    ws_emit_cmd_result(device, cmd_name, True, None, value=value)
+
+    return jsonify({"ok": True})
 
 
-@app.get("/events")
-def events():
-    q: queue.Queue = queue.Queue(maxsize=200)
-    subs.append(q)
+@app.post("/alarm/pin")
+def alarm_pin():
+    data = request.get_json(silent=True) or {}
+    device = str(data.get("device", "PI1")).strip()
+    pin = str(data.get("pin", "")).strip()
+    device_name = str(data.get("device_name", device))
 
-    @stream_with_context
-    def gen():
-        snapshot = {f"{dev}:{code}": val for (dev, code), val in latest.items()}
-        yield f"event: snapshot\ndata: {json.dumps(snapshot)}\n\n"
+    if len(pin) != 4 or not pin.isdigit():
+        ws_emit_pin_result(device, False, "PIN must be 4 digits")
+        return jsonify({"ok": False, "error": "PIN must be 4 digits"}), 400
 
-        while True:
-            try:
-                ev = q.get(timeout=25)
-                yield f"data: {json.dumps(ev)}\n\n"
-            except queue.Empty:
-                yield "event: ping\ndata: {}\n\n"
+    ok = alarm.submit_pin(device=device, device_name=device_name, pin=pin, source="FE")
+    cmd_pub.publish(device=device, cmd="PIN_SUBMIT", value=pin)
+
+    if ok:
+        ws_emit_pin_result(device, True, None)
+    else:
+        ws_emit_pin_result(device, False, "PIN rejected")
+
+    ws_emit_snapshot(device)
+    return jsonify({"ok": ok})
+
+CAMERA_URL = "http://PI1_IP:8080/?action=stream"
+
+@app.route("/camera/pi1")
+def camera_pi1():
+    r = requests.get(CAMERA_URL, stream=True)
 
     return Response(
-        gen(),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers["Content-Type"]
     )
 
-@app.post("/pi2/timer/set")
-def pi2_timer_set():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    seconds = int(float(data.get("seconds", 0)))
-    cmd_pub.publish_timer_set(device, seconds)
-    return jsonify({"ok": True})
+# legacy SSE stub (optional)
+@app.get("/events")
+def events():
+    return Response(
+        "event: ping\ndata: {}\n\n",
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
 
-@app.post("/pi2/timer/run")
-def pi2_timer_run():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    running = bool(data.get("running", True))
-    cmd_pub.publish_timer_run(device, running)
-    return jsonify({"ok": True})
-
-@app.post("/pi2/timer/reset")
-def pi2_timer_reset():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    cmd_pub.publish_timer_reset(device)
-    return jsonify({"ok": True})
-
-@app.post("/pi2/timer/add-seconds-config")
-def pi2_timer_add_seconds_config():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    add_seconds = int(float(data.get("addSeconds", 5)))
-    cmd_pub.publish_timer_add_seconds_config(device, add_seconds)
-    return jsonify({"ok": True})
-
-@app.post("/pi2/btn/press")
-def pi2_btn_press():
-    data = request.get_json(force=True) or {}
-    device = str(data.get("device", "PI2"))
-    cmd_pub.publish_btn_press(device)
-    return jsonify({"ok": True})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded= True)
+    # With async_mode="threading" this runs on Werkzeug (fine for local dev).
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)

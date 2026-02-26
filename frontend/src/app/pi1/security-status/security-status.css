@@ -1,0 +1,172 @@
+/* ── Shell — matches .plan-frame aesthetic ───────────────── */
+.status-shell {
+  --ok:      #2ecc71;
+  --warn:    #e8a020;
+  --err:     #e74c3c;
+  --accent:  #4a9eff;
+  --neutral: #6a5a48;
+  --text:    #d4cfc9;
+  --muted:   #7a6a58;
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+
+  background: linear-gradient(160deg, #1e1a16 0%, #12100e 60%, #0e0c0a 100%);
+
+  border: 12px solid #966e52;
+  outline: 3px solid #704934;
+  outline-offset: -5px;
+  border-radius: 28px;
+  padding: 14px 16px 16px;
+  width: 220px;
+
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
+
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  user-select: none;
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow 500ms;
+}
+
+.status-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 2px #352219;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* State-driven outer glow — supplements the walnut box-shadow */
+.status-shell.alarmed {
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65),
+    0 0 24px rgba(231,76,60,0.4);
+}
+.status-shell.armed {
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65),
+    0 0 18px rgba(74,158,255,0.3);
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-device {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3a3028;
+  box-shadow: 0 0 4px #000;
+  transition: background 400ms, box-shadow 400ms;
+}
+.conn-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+
+/* ── State badge ─────────────────────────────────────────── */
+.state-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+  color: var(--muted);
+  transition: color 400ms, background 400ms;
+}
+
+.state-badge.disarmed { color: var(--ok);     background: rgba(46,204,113,0.08);  border-color: rgba(46,204,113,0.2); }
+.state-badge.armed    { color: var(--accent); background: rgba(74,158,255,0.08);  border-color: rgba(74,158,255,0.2); }
+.state-badge.alarmed  { color: var(--err);    background: rgba(231,76,60,0.12);   border-color: rgba(231,76,60,0.3); }
+.state-badge.exit,
+.state-badge.entry    { color: var(--warn);   background: rgba(232,160,32,0.08);  border-color: rgba(232,160,32,0.2); }
+
+@keyframes alarm-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.state-badge.alarmed { animation: alarm-pulse 1s ease-in-out infinite; }
+
+.state-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+.state-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* ── Alarm reason ────────────────────────────────────────── */
+.alarm-reason {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--err);
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(231,76,60,0.1);
+  border: 1px solid rgba(231,76,60,0.2);
+}
+
+/* ── Stats grid ──────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stat-cell {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.5);
+}
+.stat-cell.wide { grid-column: span 2; }
+
+.stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+.stat-val {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  transition: color 300ms;
+}
+.stat-val.active   { color: var(--err); }
+.stat-val.inactive { color: var(--ok); }
+.stat-val.unknown  { color: var(--muted); }
+
+.stat-val.people { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.people-icon  { font-size: 10px; color: var(--accent); opacity: 0.85; }
+.people-count { font-size: 14px; font-weight: 700; color: var(--text); margin-left: auto; }

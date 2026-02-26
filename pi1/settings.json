@@ -14,17 +14,17 @@
     "client_id": "pi1-smartdoor",
     "qos": 1,
     "retain": false,
-    "batch_size": 10,
-    "flush_interval_sec": 5
+    "batch_size": 1,
+    "flush_interval_sec": 0.2
   },
 
   "DL":  { "simulated": true, "pin": 21, "active_high": true },
   "DB":  { "simulated": true, "pin": 22, "active_high": true },
-  "DS1": { "simulated": true, "pin": 17, "active_high": false, "pull": "up" },
+  "DS1": { "simulated": true, "pin": 23, "active_high": true, "pull": "up" },
 
   "DPIR1": {
     "delay_sec": 1.5,
-    "simulated": true,
+    "simulated": false,
     "pin": 17,
     "pull": "down",
     "active_high": true
@@ -34,13 +34,13 @@
     "delay_sec": 2.0,
     "simulated": true,
     "trig_pin": 4,
-    "echo_pin": 17
+    "echo_pin": 18
   },
 
   "DMS": {
     "delay_sec": 0.05,
-    "simulated": true,
-    "rows": [6, 13, 19, 26],
+    "simulated": false,
+    "rows": [25, 8, 7, 1],
     "cols": [12, 16, 20, 21]
   },
   "ALARM": { "pin": "6236" }
