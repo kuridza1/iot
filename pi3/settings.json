@@ -8,11 +8,11 @@
     "pi_id": "PI3",
     "device_name": "SmartRooms",
     "location": "Bedroom/LivingRoom",
-    "default_simulated": false
+    "default_simulated": true
   },
   "mqtt": {
     "enabled": true,
-    "broker": "192.168.107.132",
+    "broker": "localhost",
     "port": 1883,
     "topic_prefix": "iot/smart-house",
     "client_id": "pi3-smartrooms",

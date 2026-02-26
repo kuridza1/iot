@@ -1,6 +1,7 @@
 # PI1 Smart Door — Run Instructions
 
 ## 1) Pokretanje na Raspberry Pi
+broker: "192.168.107.132"
 
 ssh student@192.168.107.147
 mkdir -p ~/tojest
