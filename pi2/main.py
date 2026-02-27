@@ -62,7 +62,7 @@ def main() -> None:
     timer = FourDigitTimer(simulated=timer_sim)
 
     # state: BTN adds N seconds (shared between loops and cmd listener)
-    btn_add_seconds_ref: Dict[str, Any] = {"value": int(cfg.get("BTN_ADD_SECONDS", 5))}
+    btn_add_seconds_ref: Dict[str, Any] = {"value": int(cfg.get("BTN_ADD_SECONDS", 0))}
 
     def emit_timer_state(reason: str) -> None:
         running, left = timer.status()

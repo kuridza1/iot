@@ -2,7 +2,10 @@
   "SERVER": {
   "enabled": true,
   "base_url": "http://localhost:5000",
-  "dht3_device": "PI2"
+  "dht3_device": "PI2",
+  "people_device": "PI1",
+  "people_code": "PEOPLE_INSIDE",
+  "alarm_device": "PI1"
   },
   "device": {
     "pi_id": "PI3",

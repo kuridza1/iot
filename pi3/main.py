@@ -108,12 +108,39 @@ def main() -> None:
     dpir_pin = int(dpir_cfg.get("pin", 17))
     dpir_pull = str(dpir_cfg.get("pull", "down"))
     dpir_active_high = bool(dpir_cfg.get("active_high", True))
+    def on_dpir3(motion: bool) -> None:
+        m = bool(motion)
+        emit("sensor", "DPIR3", m, None, dpir_sim)
+
+        if not m:
+            return
+
+        with people_lock:
+            p = int(people_inside)
+
+        # MOTION_WHEN_EMPTY: samo kad je prazno
+        if p <= 0:
+            payload = {
+                "device": pi1_id,
+                "cmd": "ALARM_SET",
+                "value": {
+                    "active": True,
+                    "reason": "MOTION_WHEN_EMPTY",
+                    "source": pi_id,
+                    "meta": {"pir": "DPIR3", "people_inside": p},
+                },
+            }
+            try:
+                pub_client.publish(pi1_cmd_topic, json.dumps(payload), qos=1, retain=False)
+                emit("security", "INCIDENT", "MOTION_WHEN_EMPTY", None, True)
+            except Exception as e:
+                emit("security", "INCIDENT_PUBLISH_FAIL", str(e), None, True)
 
     t = threading.Thread(
         target=run_pir_loop,
         args=(
             float(dpir_cfg.get("delay_sec", 1.5)),
-            lambda motion: emit("sensor", "DPIR3", bool(motion), None, dpir_sim),
+            on_dpir3,
             stop_event,
             dpir_sim,
             dpir_pin,
@@ -164,7 +191,31 @@ def main() -> None:
             return float(v)
         except Exception:
             return None
+    # --- PEOPLE INSIDE (cache) ---
+    people_device = str(server_cfg.get("people_device", "PI1"))  # gde se publikuje PEOPLE_INSIDE
+    people_code = str(server_cfg.get("people_code", "PEOPLE_INSIDE"))
 
+    people_lock = threading.Lock()
+    people_inside: int = 0
+
+    def fetch_latest_int(device: str, code: str) -> Optional[int]:
+        v = fetch_latest(device, code)
+        if v is None:
+            return None
+        try:
+            return int(float(v))
+        except Exception:
+            return None
+
+    def people_poll_loop() -> None:
+        nonlocal people_inside
+        while not stop_event.is_set():
+            v = fetch_latest_int(people_device, people_code)
+            if v is not None:
+                with people_lock:
+                    people_inside = v
+
+            time.sleep(1.0)  # polling period (1s je ok za ovo)
     order = ["DHT1", "DHT2", "DHT3"]
     idx = 0
 
@@ -238,7 +289,7 @@ def main() -> None:
             lcd_rotate_started = True
             print(f"[{ts_str()}] LCD rotate loop starting (period={rotate_period:.2f}s)")
             threading.Thread(target=lcd_rotate_loop, daemon=True).start()
-
+            threading.Thread(target=people_poll_loop, daemon=True).start()
     # ---------- DHT1 thread ----------
     threading.Thread(
         target=run_dht_loop,
@@ -297,6 +348,17 @@ def main() -> None:
     port = int(mqtt_cfg.get("port", 1883))
     topic_prefix = str(mqtt_cfg.get("topic_prefix", "")).strip().rstrip("/")
     cmd_topic = f"{topic_prefix}/{pi_id}/cmd" if topic_prefix else f"{pi_id}/cmd"
+    pi1_id = str(server_cfg.get("alarm_device", "PI1")).strip()
+    pi1_cmd_topic = f"{topic_prefix}/{pi1_id}/cmd" if topic_prefix else f"{pi1_id}/cmd"
+
+    pub_client = mqtt.Client(client_id=f"{pi_id}-pub")
+
+    try:
+        pub_client.connect(broker, port, keepalive=30)
+        pub_client.loop_start()
+        print(f"[{ts_str()}] PI3 publisher connected (for PI1 cmds): topic={pi1_cmd_topic}")
+    except Exception as e:
+        print(f"[{ts_str()}] WARNING: pub client failed to start: {e}")
 
     def _handle_cmd(cmd: str, value: Any) -> None:
         nonlocal lcd_enabled
@@ -413,7 +475,11 @@ def main() -> None:
             cmd_client.disconnect()
         except Exception:
             pass
-
+        try:
+            pub_client.loop_stop()
+            pub_client.disconnect()
+        except Exception:
+            pass
         try:
             publisher.stop()
         except Exception:

@@ -54,7 +54,8 @@
   "GSG": {
     "delay_sec": 0.5,
     "simulated": true,
-    "threshold": 0.5
+    "threshold": 0.8,
+    "alarm_cooldown_sec": 15.0
   },
 
   "4SD": {
