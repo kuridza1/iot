@@ -26,7 +26,7 @@
   },
 
   "DPIR3": {
-    "delay_sec": 1.5,
+    "delay_sec": 5,
     "simulated": true,
     "pin": 17,
     "pull": "down",

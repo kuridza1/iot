@@ -1,3 +1,4 @@
+# pi2/cmd_listener.py
 from __future__ import annotations
 
 import json
@@ -8,6 +9,15 @@ import paho.mqtt.client as mqtt
 
 
 class Pi2CmdListener:
+    """
+    Listens on:  {topic_prefix}/{device}/cmd
+    Payload:     {"cmd": "...", "value": ...}
+
+    Handles:
+      - TIMER_SET, TIMER_RUN, TIMER_RESET
+      - TIMER_ADD_CONFIG, BTN_PRESS
+      - DS2 (door/lock actuator on PI2)
+    """
 
     def __init__(
         self,
@@ -16,18 +26,26 @@ class Pi2CmdListener:
         client_id: str,
         topic_prefix: str,
         device: str,
-        timer,             
+        timer,
         emit,
         stop_event: threading.Event,
         timer_simulated: bool = True,
-        btn_add_seconds_ref: Optional[Dict[str, Any]] = None,  
+        btn_add_seconds_ref: Optional[Dict[str, Any]] = None,
+
+        ds2_button=None,
+        ds2_simulated: bool = True,
     ) -> None:
         self._topic = f"{topic_prefix.rstrip('/')}/{device}/cmd"
+
         self._timer = timer
         self._emit = emit
         self._stop_event = stop_event
+
         self._timer_sim = bool(timer_simulated)
         self._btn_add_ref = btn_add_seconds_ref
+
+        self._ds2 = ds2_button
+        self._ds2_sim = bool(ds2_simulated)
 
         self._client = mqtt.Client(client_id=client_id, clean_session=True)
         self._client.on_connect = self._on_connect
@@ -55,7 +73,6 @@ class Pi2CmdListener:
         try:
             running, left = self._timer.status()
             blink = bool(getattr(self._timer, "is_blinking", lambda: False)())
-
             self._emit("actuator", "4SD", self._timer.render(), None, self._timer_sim)
             self._emit("actuator", "4SD_REM", int(left), "sec", self._timer_sim)
             self._emit("actuator", "4SD_RUN", bool(running), None, self._timer_sim)
@@ -78,7 +95,6 @@ class Pi2CmdListener:
         cmd = str(payload.get("cmd", "")).strip()
         value = payload.get("value", None)
 
-
         if cmd == "TIMER_SET":
             sec = 0
             if isinstance(value, dict):
@@ -91,7 +107,6 @@ class Pi2CmdListener:
             return
 
         if cmd == "TIMER_RUN":
-            running = True
             if isinstance(value, dict):
                 running = bool(value.get("running", True))
             else:
@@ -132,3 +147,22 @@ class Pi2CmdListener:
             self._emit("actuator", "4SD_ADD", int(add_sec), "sec", self._timer_sim)
             self._emit_timer_state("CMD_BTN_PRESS")
             return
+
+        if cmd == "DS2":
+            if self._ds2 is None:
+                self._emit("security", "CMD_DS2_FAILED", "DS2 actuator not configured", None, True)
+                return
+
+            try:
+                target_on = bool(value)
+                if target_on:
+                    self._ds2.on()
+                else:
+                    self._ds2.off()
+
+                self._emit("actuator", "DS2", bool(self._ds2.isOn()), None, self._ds2_sim)
+            except Exception as e:
+                self._emit("security", "CMD_DS2_FAILED", str(e), None, True)
+            return
+
+        return

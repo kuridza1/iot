@@ -30,18 +30,19 @@
   <div *ngIf="selectedPi === 'PI1'"
        style="grid-column:1 / span 2;padding-left: 20px;padding-bottom: 15px; grid-row:2; display:flex; gap:16px; align-items:center; flex-wrap:nowrap; overflow-x:auto;">
     <app-web-cam></app-web-cam>
-    <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px"></app-ds1>
+    <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px" doorCode="DS1"></app-ds1>
     <app-light-switch [apiBase]="apiBase" device="PI1"></app-light-switch>
   </div>
 
   <div *ngIf="selectedPi === 'PI2'"
-       style="">
+      >
     <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
     <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
+    <app-ds1 [apiBase]="apiBase" device="PI2" doorCode="DS2"></app-ds1>
   </div>
 
   <div *ngIf="selectedPi === 'PI3'"
-       style="">
+       >
     <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>
     <app-lcd [apiBase]="apiBase" device="PI3"></app-lcd>
   </div>

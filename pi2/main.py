@@ -46,6 +46,7 @@ def main() -> None:
         publisher, device=pi_id, device_name=device_name, ts_str=ts_str
     )
 
+    # ---------------- DS2 / BTN / TIMER ----------------
     ds2_cfg = cfg.get("DS2", {"simulated": default_simulated, "pin": 23, "active_high": True})
     btn_cfg = cfg.get("BTN", {"simulated": default_simulated, "pin": 24, "active_high": True})
     timer_cfg = cfg.get("4SD", {"simulated": default_simulated})
@@ -69,16 +70,19 @@ def main() -> None:
         emit("actuator", "4SD_BLINK", bool(blink), None, timer_sim)
         emit("actuator", "4SD_STATE_REASON", str(reason), None, timer_sim)
 
-    emit("sensor", "DS2", bool(ds2.isOn()), None, ds2_sim)
+    # Initial telemetry
+    emit("actuator", "DS2", bool(ds2.isOn()), None, ds2_sim)
     emit("sensor", "BTN", bool(btn.isOn()), None, btn_sim)
     emit_timer_state("BOOT")
     emit("actuator", "BTN_ADD_SEC", int(btn_add_seconds_ref["value"]), "sec", timer_sim)
 
+    # ---------------- MQTT ----------------
     mqtt_cfg = cfg.get("mqtt", {})
     broker = str(mqtt_cfg.get("broker", "localhost"))
     port = int(mqtt_cfg.get("port", 1883))
     topic_prefix = str(mqtt_cfg.get("topic_prefix", "devices")).rstrip("/")
 
+    # Listen for commands for PI2 (including DS2)
     cmd_listener = Pi2CmdListener(
         broker=broker,
         port=port,
@@ -90,15 +94,19 @@ def main() -> None:
         stop_event=stop_event,
         timer_simulated=timer_sim,
         btn_add_seconds_ref=btn_add_seconds_ref,
+        ds2_button=ds2,
+        ds2_simulated=ds2_sim,
     )
     cmd_listener.start()
 
+    # Publisher used for cross-device alarms (PI2 -> PI1), same as your GSG logic
     alarm_pub = mqtt.Client(client_id=f"{pi_id}-alarm-pub", clean_session=True)
     alarm_pub.connect(broker, port, keepalive=60)
     alarm_pub.loop_start()
 
     threads: list[threading.Thread] = []
 
+    # ---------------- PIR ----------------
     dpir_cfg = cfg.get(
         "DPIR2",
         {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True},
@@ -124,6 +132,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- Ultrasonic ----------------
     dus_cfg = cfg.get("DUS2", {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6})
     dus_sim = bool(dus_cfg.get("simulated", default_simulated))
 
@@ -142,6 +151,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- GSG (existing) ----------------
     gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated, "threshold": 0.5})
     gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
@@ -171,7 +181,7 @@ def main() -> None:
         args=(
             float(gsg_cfg.get("delay_sec", 0.5)),
             gsg_threshold,
-            on_gsg,      
+            on_gsg,
             stop_event,
             gsg_sim,
         ),
@@ -180,6 +190,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- DHT ----------------
     dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
     dht3_sim = bool(dht3_cfg.get("simulated", default_simulated))
 
@@ -200,6 +211,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- BTN loop ----------------
     last_btn = False
 
     def on_btn(v: bool) -> None:
@@ -221,6 +233,7 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- Timer loop ----------------
     def on_tick(text: str, rem: int) -> None:
         emit("actuator", "4SD", text, None, timer_sim)
         emit("actuator", "4SD_REM", int(rem), "sec", timer_sim)
@@ -241,6 +254,61 @@ def main() -> None:
     t.start()
     threads.append(t)
 
+    # ---------------- NEW: DS2 HELD -> ALARM_SET to PI1 ----------------
+    # This mirrors your GSG pattern: PI2 detects condition and publishes PI1/cmd.
+    ds2_held_threshold_sec = float(cfg.get("DS2_HELD_THRESHOLD_SEC", 5.0))
+    ds2_alarm_cooldown_sec = float(cfg.get("DS2_ALARM_COOLDOWN_SEC", 10.0))
+
+    ds2_high_since: float | None = None
+    ds2_held_triggered = False
+    last_ds2_alarm_ts = 0.0
+    last_ds2_state: bool | None = None
+
+    def poll_ds2_held() -> None:
+        nonlocal ds2_high_since, ds2_held_triggered, last_ds2_alarm_ts, last_ds2_state
+
+        now = time.time()
+        open_now = bool(ds2.isOn())  # "open/unlocked" per your convention
+
+        # Emit state if it changes (helps Influx + UI even if command didn't produce emit)
+        if last_ds2_state is None or open_now != last_ds2_state:
+            emit("actuator", "DS2", open_now, None, ds2_sim)
+            last_ds2_state = open_now
+
+        if open_now:
+            if ds2_high_since is None:
+                ds2_high_since = now
+                ds2_held_triggered = False
+
+            if (not ds2_held_triggered) and (now - ds2_high_since) >= ds2_held_threshold_sec:
+                # Cooldown so it doesn't spam PI1
+                if (now - last_ds2_alarm_ts) >= ds2_alarm_cooldown_sec:
+                    topic = f"{topic_prefix}/PI1/cmd"
+                    payload = {
+                        "cmd": "ALARM_SET",
+                        "value": {"active": True, "reason": "DS2_HELD_5S", "threshold_sec": ds2_held_threshold_sec},
+                    }
+                    alarm_pub.publish(topic, json.dumps(payload), qos=1, retain=False)
+                    last_ds2_alarm_ts = now
+                ds2_held_triggered = True
+        else:
+            ds2_high_since = None
+            ds2_held_triggered = False
+
+    def ds2_held_loop() -> None:
+        # fast enough to detect 5s reliably, not too heavy
+        while not stop_event.is_set():
+            try:
+                poll_ds2_held()
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+    t = threading.Thread(target=ds2_held_loop, daemon=True)
+    t.start()
+    threads.append(t)
+
+    # ---------------- MAIN ----------------
     try:
         while not stop_event.is_set():
             time.sleep(1)

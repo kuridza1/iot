@@ -23,13 +23,18 @@ import { WsService, CmdResult } from '../../ws.service';
 })
 export class Ds1 implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) apiBase = 'http://localhost:5000';
-  @Input({ required: true }) device = 'PI1';
+  @Input({ required: true }) device: 'PI1' | 'PI2' | 'PI3' = 'PI1';
+
+  // NEW: which door actuator/sensor this instance controls/tracks
+  // - On PI1 you pass 'DS1'
+  // - On PI2 you pass 'DS2'
+  @Input() doorCode: 'DS1' | 'DS2' = 'DS1';
 
   busy = false;
   lastOk: boolean | null = null;
   lastError = '';
 
-  // DS1=true => UNLOCKED / OPEN
+  // true => UNLOCKED / OPEN (as you already interpret)
   lockState: boolean | null = null;
 
   animating = false;
@@ -50,23 +55,29 @@ export class Ds1 implements OnInit, OnChanges, OnDestroy {
     this.ws.ensureConnected(this.apiBase, this.device);
     this.ws.setDevice(this.device);
 
-    // (1) Track actual DS1 state from telemetry events (if PI emits DS1 events)
     this.subs.add(
       this.ws.evt.subscribe((evt: any) => {
-        const code = String(evt?.code || '');
-        if (code !== 'DS1') return;
+        // Optional: if your events include device, keep instance separation strict
+        const evtDevice = String(evt?.device || '');
+        if (evtDevice && evtDevice !== this.device) return;
+
+        const code = String(evt?.code || '').toUpperCase();
+        if (code !== this.doorCode) return;
 
         this.lockState = evt?.value == null ? null : !!evt.value;
         this.cdr.detectChanges();
       }),
     );
 
-    // (2) Status message from cmd_result
     this.subs.add(
       this.ws.cmdResult.subscribe((msg: CmdResult) => {
-        // If server includes cmd, match DS1; if missing, accept any cmd_result for this device.
+        // Optional: if cmd_result includes device, keep instance separation strict
+        const msgDevice = String((msg as any)?.device || '');
+        if (msgDevice && msgDevice !== this.device) return;
+
         const cmd = String(msg?.cmd || '').toUpperCase();
-        if (cmd && cmd !== 'DS1') return;
+        // If server includes cmd, match current instance's doorCode; if missing, accept any.
+        if (cmd && cmd !== this.doorCode) return;
 
         this.lastOk = !!msg.ok;
         this.lastError = msg.ok ? '' : (msg.error || 'Command failed');
@@ -91,7 +102,11 @@ export class Ds1 implements OnInit, OnChanges, OnDestroy {
       this.ws.setDevice(this.device);
     }
 
-    if (ch['device'] && !ch['device'].firstChange) {
+    // IMPORTANT: treat device/doorCode change as a different instance state
+    if (
+      (ch['device'] && !ch['device'].firstChange) ||
+      (ch['doorCode'] && !ch['doorCode'].firstChange)
+    ) {
       this.ws.setDevice(this.device);
       this.lockState = null;
       this.lastOk = null;
@@ -106,13 +121,12 @@ export class Ds1 implements OnInit, OnChanges, OnDestroy {
     if (this.hideTimer) clearTimeout(this.hideTimer);
   }
 
-  async setDs1(unlocked: boolean): Promise<void> {
+  async setDoor(unlocked: boolean): Promise<void> {
     if (this.busy) return;
 
     this.busy = true;
     this.animating = true;
 
-    // Clear previous message for a new command
     this.lastOk = null;
     this.lastError = '';
 
@@ -130,12 +144,11 @@ export class Ds1 implements OnInit, OnChanges, OnDestroy {
         signal: this.abort.signal,
         body: JSON.stringify({
           device: this.device,
-          cmd: 'DS1',
-          value: unlocked, // true => OPEN / UNLOCKED
+          cmd: this.doorCode,     // NEW: DS1 or DS2 depending on instance
+          value: unlocked,
         }),
       });
 
-      // If HTTP fails hard, show immediate error (WS may not arrive)
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as any;
         this.lastOk = false;
@@ -155,5 +168,9 @@ export class Ds1 implements OnInit, OnChanges, OnDestroy {
         this.cdr.detectChanges();
       }, 500);
     }
+  }
+
+  async setDs1(unlocked: boolean): Promise<void> {
+    return this.setDoor(unlocked);
   }
 }

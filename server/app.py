@@ -163,7 +163,7 @@ def on_set_device(data):
     emit("snapshot", _snapshot_with_device(device))
 
 ALLOWED_CMDS = {
-    "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1",
+    "PIN_SUBMIT", "DL", "DB", "ALARM_SET", "DS1", "DS2",
 
     "PI3_BRGB_TOGGLE", "PI3_BRGB_SET",
     "BRGB_TOGGLE", "BRGB_SET",

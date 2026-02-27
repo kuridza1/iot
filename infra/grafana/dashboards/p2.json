@@ -23,92 +23,6 @@
   "panels": [
     {
       "datasource": {
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 8,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "query": "set = from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"4SD_SET\" and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: int(v: r._value) }))\r\n\r\nrun = from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"4SD_RUN\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n      r with _value: if r._value then 1 else 0\r\n  }))\r\n\r\nunion(tables: [set, run])\r\n  |> keep(columns: [\"_time\", \"_value\", \"code\"])\r\n",
-          "refId": "A"
-        }
-      ],
-      "title": "4SD - timer",
-      "type": "barchart"
-    },
-    {
-      "datasource": {
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
@@ -171,7 +85,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 0
       },
       "id": 7,
@@ -297,101 +211,10 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 7,
-        "y": 8
-      },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI2\" and\r\n    (r.code == \"DHT3_HUM\" or r.code == \"DHT3_TEMP\") and\r\n    r._field == \"value_num\"\r\n  )",
-          "refId": "A"
-        }
-      ],
-      "title": "DHT3 — vlažnost",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
             "mode": "thresholds"
           },
           "custom": {
-            "axisPlacement": "auto",
+            "axisPlacement": "hidden",
             "fillOpacity": 70,
             "hideFrom": {
               "legend": false,
@@ -460,78 +283,6 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "axisPlacement": "hidden",
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 7,
-        "x": 7,
-        "y": 16
-      },
-      "id": 5,
-      "options": {
-        "alignValue": "left",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "auto",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -30m)\r\n  |> filter(fn: (r) =>\r\n      r.device == \"PI2\" and\r\n      r.code == \"DS2\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: if r._value then 1 else 0 }))\r\n",
-          "refId": "A"
-        }
-      ],
-      "title": "DS2 - Otvaranje/zatvaranje",
-      "type": "state-timeline"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
             "mode": "palette-classic"
           },
           "custom": {
@@ -587,11 +338,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 7,
-        "x": 14,
-        "y": 16
+        "w": 8,
+        "x": 0,
+        "y": 24
       },
-      "id": 6,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [],
@@ -608,12 +359,170 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r.device == \"PI2\" and\r\n      r.code == \"BTN\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: if r._value then 1 else 0 }))\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI2\" and\r\n    (r.code == \"DHT3_HUM\" or r.code == \"DHT3_TEMP\") and\r\n    r._field == \"value_num\"\r\n  )",
           "refId": "A"
         }
       ],
-      "title": "BTN - kuhinjsko dugme",
+      "title": "DHT3 — vlažnost",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisPlacement": "hidden",
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 0,
+        "y": 32
+      },
+      "id": 5,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DS2\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "refId": "A"
+        }
+      ],
+      "title": "DS2 - Otvaranje/zatvaranje",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 8,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "query": "set = from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"4SD_SET\" and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: int(v: r._value) }))\r\n\r\nrun = from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"4SD_RUN\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n      r with _value: if r._value then 1 else 0\r\n  }))\r\n\r\nunion(tables: [set, run])\r\n  |> keep(columns: [\"_time\", \"_value\", \"code\"])\r\n",
+          "refId": "A"
+        }
+      ],
+      "title": "4SD - timer",
+      "type": "barchart"
     }
   ],
   "preload": false,
@@ -630,5 +539,5 @@
   "timezone": "browser",
   "title": "pi2",
   "uid": "adjcczn",
-  "version": 23
+  "version": 25
 }

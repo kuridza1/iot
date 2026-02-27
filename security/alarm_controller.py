@@ -14,7 +14,7 @@ class AlarmController:
         pin: str,
         exit_delay_sec: float = 10.0,
         entry_delay_sec: float = 10.0,
-        close_doors_cb: Optional[Callable[[], None]] = None, 
+        close_doors_cb: Optional[Callable[[], None]] = None,
     ):
         self.buzzer = buzzer
         self.emit = emit
@@ -23,7 +23,7 @@ class AlarmController:
         self.exit_delay_sec = float(exit_delay_sec)
         self.entry_delay_sec = float(entry_delay_sec)
 
-        self.close_doors_cb = close_doors_cb 
+        self.close_doors_cb = close_doors_cb
 
         self.state: AlarmState = AlarmState.DISARMED
 
@@ -33,8 +33,9 @@ class AlarmController:
         self._exit_timer: Optional[threading.Timer] = None
         self._entry_timer: Optional[threading.Timer] = None
 
+        # Track held-open for multiple doors
         self.ds1_held = DoorHeldState()
-
+        self.ds2_held = DoorHeldState()  # NEW
 
     def _set_state(self, new_state: AlarmState, reason: Optional[str] = None) -> None:
         with self._state_lock:
@@ -65,7 +66,6 @@ class AlarmController:
             self.buzzer.off()
             self.emit("actuator", "DB", False, None, True)
 
-
     def arm_begin(self, reason: str = "ARM_BY_PIN") -> None:
         with self._state_lock:
             st = self.state
@@ -90,6 +90,7 @@ class AlarmController:
     def disarm(self, reason: str = "DISARM") -> None:
         self._cancel_timers()
         self.ds1_held = DoorHeldState()
+        self.ds2_held = DoorHeldState()  # NEW
         self._buzzer_off()
         self._set_state(AlarmState.DISARMED, reason)
 
@@ -153,29 +154,71 @@ class AlarmController:
             self._entry_timer.daemon = True
             self._entry_timer.start()
 
+    # -------- Held-open tracking for DS1/DS2 --------
 
-    def handle_ds1_level(self, door_open: bool, now: float) -> None:
+    def handle_door_level(self, door_code: str, door_open: bool, now: float) -> None:
+        """
+        Update held-open tracking for door_code ('DS1' or 'DS2').
+        """
+        h = self._held_state_for(door_code)
+        if h is None:
+            return
+
         if door_open:
-            if not self.ds1_held.is_high:
-                self.ds1_held.is_high = True
-                self.ds1_held.high_since = now
-                self.ds1_held.held_triggered = False
+            if not h.is_high:
+                h.is_high = True
+                h.high_since = now
+                h.held_triggered = False
         else:
-            self.ds1_held = DoorHeldState()
+            self._reset_held_state(door_code)
 
-    def check_ds1_held(self, now: float, threshold_sec: float) -> None:
-        h = self.ds1_held
+    def check_door_held(self, door_code: str, now: float, threshold_sec: float) -> None:
+        """
+        If door stayed open >= threshold_sec, emit distinct message and alarm.
+        """
+        h = self._held_state_for(door_code)
+        if h is None:
+            return
+
         if h.is_high and h.high_since is not None and not h.held_triggered:
             if (now - h.high_since) >= float(threshold_sec):
                 h.held_triggered = True
-                self.emit("security", "DOOR_HELD", "DS1_HELD_5S", "event", True)
-                self.alarm_on("DS1_HELD_5S")
+
+                # distinct payload per door
+                msg = f"{door_code}_HELD_{int(float(threshold_sec))}S"  # e.g. DS2_HELD_5S
+                self.emit("security", "DOOR_HELD", msg, "event", True)
+                self.alarm_on(msg)
+
+    def _held_state_for(self, door_code: str) -> Optional[DoorHeldState]:
+        code = (door_code or "").upper().strip()
+        if code == "DS1":
+            return self.ds1_held
+        if code == "DS2":
+            return self.ds2_held
+        return None
+
+    def _reset_held_state(self, door_code: str) -> None:
+        code = (door_code or "").upper().strip()
+        if code == "DS1":
+            self.ds1_held = DoorHeldState()
+        elif code == "DS2":
+            self.ds2_held = DoorHeldState()
+
+    # Backwards-compatible wrappers if you still call DS1-specific methods elsewhere
+    def handle_ds1_level(self, door_open: bool, now: float) -> None:
+        self.handle_door_level("DS1", door_open, now)
+
+    def check_ds1_held(self, now: float, threshold_sec: float) -> None:
+        self.check_door_held("DS1", now, threshold_sec)
+
+    # NEW optional wrappers for DS2
+    def handle_ds2_level(self, door_open: bool, now: float) -> None:
+        self.handle_door_level("DS2", door_open, now)
+
+    def check_ds2_held(self, now: float, threshold_sec: float) -> None:
+        self.check_door_held("DS2", now, threshold_sec)
 
     def trigger_alarm(self, reason: str = "INCIDENT", source: str = "REMOTE", meta: Optional[dict] = None) -> None:
-        """
-        Force ALARM state (e.g. GSG movement from PI2).
-        If already alarming, do nothing.
-        """
         with self._state_lock:
             if self.state == AlarmState.ALARM:
                 return
@@ -191,9 +234,5 @@ class AlarmController:
         self.alarm_on(r)
 
     def clear_alarm(self, reason: str = "CLEAR", source: str = "REMOTE") -> None:
-        """
-        Clear alarm back to DISARMED.
-        If you prefer ARMED instead, replace DISARMED with ARMED.
-        """
         self.emit("security", "INCIDENT_ALARM_OFF", f"{source}:{reason}", None, True)
         self.disarm(f"{source}:{reason}")
