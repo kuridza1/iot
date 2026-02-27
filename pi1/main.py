@@ -103,6 +103,7 @@ def main() -> None:
 
     def on_dus1(d: Optional[float]) -> None:
         emit("sensor", "DUS1", d, "cm", True)
+        print(f"[DUS1] {d if d is not None else 'None'} cm")
         now = time.time()
         cutoff = now - DUS_WINDOW_SEC
         with state_lock:

@@ -20,8 +20,17 @@ class Button:
             return self._sim_state
 
         v = GPIO.input(self.pin)
-        return v if self.active_high else (not v)
+        pressed = v if self.active_high else (not v)
 
+        if not hasattr(self, "_last_pressed"):
+            self._last_pressed = pressed
+            self._latched = False
+
+        if pressed and not self._last_pressed:
+            self._latched = not self._latched
+
+        self._last_pressed = pressed
+        return self._latched
 
     def on(self) -> None:
         if self.simulated:

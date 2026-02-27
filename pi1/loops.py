@@ -26,12 +26,16 @@ def start_ds1_loop(button, alarm, emit, btn_cfg: Dict[str, Any],
 
             if last_raw is None or raw != last_raw:
                 last_raw = raw
+
+                # >>> DODATO: telemetrija + debug <<<
+                emit("sensor", "DS1", door_open, None, simulated)
+                print(f"[DS1] {'OPEN' if door_open else 'CLOSED'} (simulated={simulated})")
+
                 if door_open:
                     alarm.on_door_event("DS1", "DOOR_OPEN")
 
                 alarm.handle_ds1_level(door_open, now)
 
-            # held detection on "open"
             alarm.check_ds1_held(now, door_held_sec)
 
             time.sleep(delay_sec)
@@ -67,8 +71,8 @@ def start_dus_loop(cfg: Dict[str, Any], on_dus: Callable, stop_event: threading.
             on_dus,
             stop_event,
             cfg["simulated"],
-            cfg.get("trig_pin", 5),
-            cfg.get("echo_pin", 6),
+            cfg.get("trig_pin", 4),
+            cfg.get("echo_pin", 23),
         ),
         daemon=True,
     )

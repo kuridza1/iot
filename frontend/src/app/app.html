@@ -34,11 +34,16 @@
     <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px" doorCode="DS1"></app-ds1>
   </div>
 
-  <div *ngIf="selectedPi === 'PI2'" >
+  <div *ngIf="selectedPi === 'PI2'">
     <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
-    <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
-    <app-ds1 [apiBase]="apiBase" device="PI2" doorCode="DS2"></app-ds1>
   </div>
+  <div *ngIf="selectedPi === 'PI2'" style="grid-column:1; grid-row:2; margin-top: 100px; margin-left:390px" >
+        <app-ds1 [apiBase]="apiBase" device="PI2" doorCode="DS2"></app-ds1>
+  </div>
+  <div *ngIf="selectedPi === 'PI2'" style="grid-column:2; grid-row:2; ">
+    <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
+  </div>
+
 
   <div *ngIf="selectedPi === 'PI3'"
        style="grid-column:1; grid-row:1; margin-left:670px;">

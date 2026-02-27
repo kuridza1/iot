@@ -8,5 +8,5 @@ import { Component } from '@angular/core';
 })
 
 export class WebCam {
-    url = 'http://192.168.107.147:8080/?action=stream';
+    url = 'http://192.168.107.148:8080/?action=stream';
   }

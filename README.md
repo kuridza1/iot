@@ -3,19 +3,19 @@
 ## 1) Pokretanje na Raspberry Pi
 broker: "192.168.107.132"
 
-ssh student@192.168.107.147
+ssh student@192.168.107.148
 mkdir -p ~/tojest
 exit
 
 // idi u iot folder
-scp -r ./pi1 student@192.168.107.147:/home/student/tojest/
-scp -r ./helper student@192.168.107.147:/home/student/tojest/
-scp -r ./actuators student@192.168.107.147:/home/student/tojest/
-scp -r ./sensors student@192.168.107.147:/home/student/tojest/
-scp -r ./security student@192.168.107.147:/home/student/tojest/
-scp -r ./mqtt student@192.168.107.147:/home/student/tojest/
+scp -r ./pi1 student@192.168.107.148:/home/student/tojest/
+scp -r ./helper student@192.168.107.148:/home/student/tojest/
+scp -r ./actuators student@192.168.107.148:/home/student/tojest/
+scp -r ./sensors student@192.168.107.148:/home/student/tojest/
+scp -r ./security student@192.168.107.148:/home/student/tojest/
+scp -r ./mqtt student@192.168.107.148:/home/student/tojest/
 
-ssh student@192.168.107.147
+ssh student@192.168.107.148
 cd ~/tojest
 
 py -m pi1.main

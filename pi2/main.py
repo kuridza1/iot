@@ -156,7 +156,7 @@ def main() -> None:
     gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
 
-    alarm_cooldown_sec = float(gsg_cfg.get("alarm_cooldown_sec", 5.0))
+    alarm_cooldown_sec = float(gsg_cfg.get("alarm_cooldown_sec", 0.5))
     last_alarm_ts = 0.0
 
     def on_gsg(moving: bool, mag: float) -> None:

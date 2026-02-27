@@ -55,7 +55,7 @@
     "delay_sec": 0.5,
     "simulated": true,
     "threshold": 0.8,
-    "alarm_cooldown_sec": 15.0
+    "alarm_cooldown_sec": 2.0
   },
 
   "4SD": {

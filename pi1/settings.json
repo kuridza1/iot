@@ -20,7 +20,7 @@
 
   "DL":  { "simulated": true, "pin": 21, "active_high": true },
   "DB":  { "simulated": true, "pin": 22, "active_high": true },
-  "DS1": { "simulated": true, "pin": 23, "active_high": true, "pull": "up" },
+  "DS1": { "simulated": true, "pin": 17, "active_high": true, "pull": "up" },
 
   "DPIR1": {
     "delay_sec": 1.5,
@@ -34,7 +34,7 @@
     "delay_sec": 2.0,
     "simulated": true,
     "trig_pin": 4,
-    "echo_pin": 18
+    "echo_pin": 23
   },
 
   "DMS": {

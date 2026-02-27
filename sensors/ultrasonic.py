@@ -32,8 +32,8 @@ def run_ultrasonic_loop(
     callback: Callable[[Optional[float]], None],
     stop_event,
     simulated: bool = True,
-    trig_pin: int = 5,
-    echo_pin: int = 6,
+    trig_pin: int = 4,
+    echo_pin: int = 23,
     max_cm: float = 200.0,
     timeout_s: float = 0.02,
 ) -> None:
@@ -93,7 +93,7 @@ def run_ultrasonic_loop(
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(trig_pin, GPIO.OUT)
-    GPIO.setup(echo_pin, GPIO.IN)
+    GPIO.setup(echo_pin, GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
 
     try:
         while not stop_event.is_set():
