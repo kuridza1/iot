@@ -1,33 +1,47 @@
 <div class="alarm-overlay" [class.alarm-active]="alarmActive" aria-hidden="true"></div>
 
-<div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:10px; align-items:start;">
-
-  <!-- Floorplan -->
-  <div>
+<div
+  class="dash-shell"
+  style="
+    display:grid;
+    grid-template-columns: 1.1fr auto 1fr;
+    grid-template-rows: auto auto;
+    gap:10px;
+    align-items:start;
+  "
+>
+  <!-- Row 1 -->
+  <div style="grid-column:1; grid-row:1;">
     <app-floorplan [(selectedPi)]="selectedPi"></app-floorplan>
   </div>
 
-  <!-- Grafana -->
-  <div style="margin-top:16px;">
+  <div *ngIf="selectedPi === 'PI1'"
+       style="grid-column:2; grid-row:1; display:flex; flex-direction:column; margin-right:35px; gap:16px;">
+    <app-security-status [apiBase]="apiBase" device="PI1"></app-security-status>
+    <app-dms [apiBase]="apiBase" device="PI1"></app-dms>
+  </div>
+
+  <!-- Grafana spans both rows (so its height doesn't “push” row 2 down on the left) -->
+  <div style="grid-column:3; grid-row:1 / span 2; margin-top:16px;">
     <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
   </div>
 
-  <!-- PI1 widgets -->
-  <div *ngIf="selectedPi === 'PI1'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
-    <app-dms [apiBase]="apiBase" device="PI1"></app-dms>
-    <app-security-status [apiBase]="apiBase" device="PI1"></app-security-status>
-    <app-ds1 [apiBase]="apiBase" device="PI1"></app-ds1>
-    <app-light-switch [apiBase]="apiBase" device="PI1"></app-light-switch>
+  <!-- Row 2: widgets under left side -->
+  <div *ngIf="selectedPi === 'PI1'"
+       style="grid-column:1 / span 2;padding-left: 20px;padding-bottom: 15px; grid-row:2; display:flex; gap:16px; align-items:center; flex-wrap:nowrap; overflow-x:auto;">
     <app-web-cam></app-web-cam>
+    <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px"></app-ds1>
+    <app-light-switch [apiBase]="apiBase" device="PI1"></app-light-switch>
   </div>
 
-  <div *ngIf="selectedPi === 'PI2'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+  <div *ngIf="selectedPi === 'PI2'"
+       style="">
     <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
     <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
   </div>
 
-  <!-- PI3 widgets -->
-  <div *ngIf="selectedPi === 'PI3'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+  <div *ngIf="selectedPi === 'PI3'"
+       style="">
     <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>
     <app-lcd [apiBase]="apiBase" device="PI3"></app-lcd>
   </div>
