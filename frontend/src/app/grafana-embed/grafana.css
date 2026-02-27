@@ -1,0 +1,18 @@
+.widget-frame {
+  border: var(--wf-border-px) solid var(--wf-border-color);
+  outline: 3px solid var(--wf-border-outline);
+  outline-offset: -5px;
+  border-radius: var(--wf-radius);
+
+  background: var(--wf-inner-bg);
+
+  box-shadow:
+    20px 20px 40px #000,        /* outer shadow */
+    inset 0 0 40px rgba(0,0,0,0.7); /* inner shadow */
+
+  overflow: hidden;
+  position: relative;
+
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  color: var(--wf-text);
+}

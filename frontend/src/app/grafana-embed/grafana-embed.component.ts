@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
         width="100%"
         height="840px"
         frameborder="0"
+        z-index="10000"
       ></iframe>
     </div>
 
@@ -18,7 +19,7 @@ import { CommonModule } from '@angular/common';
       <div>No dashboard selected.</div>
     </ng-template>
   `,
-  styleUrls: ['../../widget-frame.css'],
+  styleUrls: ['grafana.css'],
   imports: [CommonModule]
 })
 export class GrafanaEmbedComponent {

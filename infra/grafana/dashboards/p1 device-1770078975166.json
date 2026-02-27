@@ -135,7 +135,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "semi-dark-blue",
+                "color": "dark-orange",
                 "value": 0
               },
               {
@@ -181,7 +181,7 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DUS1\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n  |> yield(name: \"mean\")\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DUS1\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n",
           "refId": "A"
         }
       ],
@@ -437,5 +437,5 @@
   "timezone": "browser",
   "title": "p1",
   "uid": "ffbvsb4945u68b",
-  "version": 8
+  "version": 9
 }

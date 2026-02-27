@@ -2,7 +2,7 @@ import threading
 import time
 import statistics
 from collections import deque
-from typing import Dict, Any, Optional
+from typing import Optional
 
 from actuators.button import Button
 from actuators.buzzer import Buzzer
@@ -200,6 +200,7 @@ def main() -> None:
             return
 
         alarm.submit_pin(candidate, source="DMS")
+        emit("security", "ALARM_STATE", alarm.state.value, None, True)
 
     threads = []
     threads.append(start_ds1_loop(button, alarm, emit, btn_cfg, 0.02, stop_event, door_held))

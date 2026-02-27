@@ -132,7 +132,7 @@
 /* ── Key ─────────────────────────────────────────────────── */
 .key {
   width: 52px;
-  height: 44px;
+  height: 40px;
   border-radius: 9px;
   border: 1px solid var(--key-border);
   border-bottom-color: var(--key-shadow);

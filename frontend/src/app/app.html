@@ -4,7 +4,7 @@
   class="dash-shell"
   style="
     display:grid;
-    grid-template-columns: 1.1fr auto 1fr;
+    grid-template-columns: 0.8fr auto 1fr;
     grid-template-rows: auto auto;
     gap:10px;
     align-items:start;
@@ -22,28 +22,32 @@
   </div>
 
   <!-- Grafana spans both rows (so its height doesn't “push” row 2 down on the left) -->
-  <div style="grid-column:3; grid-row:1 / span 2; margin-top:16px;">
+  <div style="grid-column:3; grid-row:1 / span 2; margin-top:5px; margin-right:30px">
     <app-grafana-embed [url]="grafanaUrl"></app-grafana-embed>
   </div>
 
   <!-- Row 2: widgets under left side -->
   <div *ngIf="selectedPi === 'PI1'"
-       style="grid-column:1 / span 2;padding-left: 20px;padding-bottom: 15px; grid-row:2; display:flex; gap:16px; align-items:center; flex-wrap:nowrap; overflow-x:auto;">
+       style="grid-column:1 / span 2;padding-left: 20px;padding-bottom: 20px; grid-row:2; display:flex; gap:16px; align-items:center; flex-wrap:nowrap; overflow-x:auto;">
     <app-web-cam></app-web-cam>
-    <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px" doorCode="DS1"></app-ds1>
     <app-light-switch [apiBase]="apiBase" device="PI1"></app-light-switch>
+    <app-ds1 [apiBase]="apiBase" device="PI1" style="margin-left:8px" doorCode="DS1"></app-ds1>
   </div>
 
-  <div *ngIf="selectedPi === 'PI2'"
-      >
+  <div *ngIf="selectedPi === 'PI2'" >
     <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
     <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
     <app-ds1 [apiBase]="apiBase" device="PI2" doorCode="DS2"></app-ds1>
   </div>
 
   <div *ngIf="selectedPi === 'PI3'"
-       >
+       style="grid-column:1; grid-row:1; margin-left:670px;">
     <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>
+  </div>
+
+  <div *ngIf="selectedPi === 'PI3'"
+       style="grid-column:1 / span 2; grid-row:2; margin-bottom: 70px">
     <app-lcd [apiBase]="apiBase" device="PI3"></app-lcd>
   </div>
+
 </div>

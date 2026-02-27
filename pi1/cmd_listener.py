@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import paho.mqtt.client as mqtt
 
@@ -114,7 +114,7 @@ class PiCmdListener:
                 self._buzzer.off()
             self._emit("actuator", "DB", self._buzzer.isOn(), None, self._buz_sim)
             return
-        
+
         if cmd == "ALARM_SET":
             active = True
             reason = "GSG"
