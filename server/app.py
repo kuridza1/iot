@@ -58,7 +58,7 @@ cmd_pub = MqttCommandPublisher(
     topic_prefix=MQTT_TOPIC_PREFIX,
 )
 
-alarm = AlarmService(influx=influx, cmd=cmd_pub, alarm_pin=ALARM_PIN)
+alarm = AlarmService()
 
 # -------------------- Helpers --------------------
 def _now_ts() -> float:
@@ -117,7 +117,6 @@ def ws_emit_cmd_result(
     socketio.emit("cmd_result", msg, room=device)
 
 
-# -------------------- MQTT -> server callback --------------------
 def on_event(payload: Any) -> None:
     if isinstance(payload, list):
         for item in payload:
@@ -132,9 +131,8 @@ def on_event(payload: Any) -> None:
     if not isinstance(payload, dict):
         return
 
-    alarm.on_event(payload)
-    ws_emit_evt(payload)
-
+    alarm.on_event(payload)   # passive cache
+    ws_emit_evt(payload)      # push to FE
 
 bridge = MqttToInfluxService(
     broker=MQTT_BROKER,
@@ -256,22 +254,18 @@ def alarm_pin():
     data = request.get_json(silent=True) or {}
     device = str(data.get("device", "PI1")).strip()
     pin = str(data.get("pin", "")).strip()
-    device_name = str(data.get("device_name", device))
 
-    if len(pin) != 4 or not pin.isdigit():
-        ws_emit_pin_result(device, False, "PIN must be 4 digits")
-        return jsonify({"ok": False, "error": "PIN must be 4 digits"}), 400
+    if not device or not pin:
+        ws_emit_cmd_result(device or "?", "PIN_SUBMIT", False, "missing device/pin")
+        return jsonify({"ok": False, "error": "missing device/pin"}), 400
 
-    ok = alarm.submit_pin(device=device, device_name=device_name, pin=pin, source="FE")
-    cmd_pub.publish(device=device, cmd="PIN_SUBMIT", value=pin)
-
-    if ok:
-        ws_emit_pin_result(device, True, None)
-    else:
-        ws_emit_pin_result(device, False, "PIN rejected")
-
-    ws_emit_snapshot(device)
-    return jsonify({"ok": ok})
+    try:
+        cmd_pub.publish(device=device, cmd="PIN_SUBMIT", value=pin)
+        ws_emit_cmd_result(device, "PIN_SUBMIT", True, value={"pin_len": len(pin)})
+        return jsonify({"ok": True})
+    except Exception as e:
+        ws_emit_cmd_result(device, "PIN_SUBMIT", False, str(e))
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/pi2/timer/set", methods=["POST", "OPTIONS"])
 def pi2_timer_set():

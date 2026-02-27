@@ -39,7 +39,7 @@
 
   "DMS": {
     "delay_sec": 0.05,
-    "simulated": false,
+    "simulated": true,
     "rows": [25, 8, 7, 1],
     "cols": [12, 16, 20, 21]
   },

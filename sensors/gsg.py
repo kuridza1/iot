@@ -21,8 +21,7 @@ def run_gsg_loop(
 
         while not stop_event.is_set():
             magnitude = baseline + random.uniform(-0.15, 0.15)
-            # povremeni "udar" (simulirani pomeraj)
-            if random.random() < 0.08:
+            if random.random() < 0.002:
                 magnitude += random.choice([-1, 1]) * random.uniform(threshold + 0.05, threshold + 0.8)
 
             moving = abs(magnitude - baseline) > threshold
