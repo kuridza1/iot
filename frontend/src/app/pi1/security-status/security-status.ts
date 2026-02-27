@@ -61,14 +61,16 @@ export class SecurityStatus implements OnInit, OnChanges, OnDestroy {
       }),
     );
 
-    // Live telemetry (MQTT -> server -> ws evt)
     this.subs.add(
       this.ws.evt.subscribe((evt: any) => {
         const code = String(evt?.code || '');
         const value = evt?.value;
 
-        if (code === 'ALARM_STATE') this.systemState = value == null ? null : String(value);
-        if (code === 'ALARM') this.alarmActive = !!value;
+        if (code === 'ALARM_STATE') {
+          this.systemState = value == null ? null : String(value);
+          this.alarmActive = this.mapState(this.systemState) === 'ALARMED';
+        }
+
         if (code === 'ALARM_REASON') this.alarmReason = value == null ? null : String(value);
         if (code === 'PEOPLE_INSIDE') this.peopleInside = Number(value) || 0;
         if (code === 'DB') this.dbOn = value == null ? null : !!value;

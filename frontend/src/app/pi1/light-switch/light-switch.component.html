@@ -1,0 +1,59 @@
+<div class="switch-shell">
+
+  <div class="switch-header">
+    <span class="switch-device">{{ device }}</span>
+    <span class="switch-status-dot" [class.on]="dlOn === true"></span>
+  </div>
+
+  <!-- Mount plate + push button -->
+  <div class="btn-plate">
+    <button
+      class="push-btn"
+      [class.is-on]="dlOn === true"
+      [disabled]="busy"
+      (click)="activate()">
+
+      <!-- Housing ring -->
+      <div class="btn-ring"></div>
+
+      <!-- Movable cap -->
+      <div class="btn-cap">
+        <!-- Power / light symbol -->
+        <div class="btn-symbol">
+          <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8.5 4.5A7 7 0 1 0 15.5 4.5"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Countdown arc (visible while light is on) -->
+      <div class="countdown-ring" *ngIf="dlOn === true">
+        <svg viewBox="0 0 56 56">
+          <circle
+            class="countdown-circle"
+            cx="28" cy="28" r="25"
+            [style.stroke-dasharray]="circumference"
+            [style.stroke-dashoffset]="dashOffset">
+          </circle>
+        </svg>
+      </div>
+
+    </button>
+  </div>
+
+  <div class="state-label" [class.on]="dlOn === true">
+    <ng-container *ngIf="dlOn === true">ON · {{ remainingSec }}s</ng-container>
+    <ng-container *ngIf="dlOn === false">OFF</ng-container>
+    <ng-container *ngIf="dlOn === null">—</ng-container>
+  </div>
+
+  <div class="status-msg"
+    [class.ok]="lastOk === true"
+    [class.err]="lastOk === false">
+    <ng-container *ngIf="lastOk === true">✓ Sent</ng-container>
+    <ng-container *ngIf="lastOk === false">✗ {{ lastError || 'Failed' }}</ng-container>
+    <ng-container *ngIf="lastOk === null">&nbsp;</ng-container>
+  </div>
+
+</div>

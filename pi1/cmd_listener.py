@@ -15,7 +15,7 @@ class PiCmdListener:
         client_id: str,
         topic_prefix: str,
         device: str,
-        alarm,              # AlarmController
+        alarm,
         led,
         buzzer,
         button,

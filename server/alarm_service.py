@@ -73,6 +73,9 @@ class AlarmService:
             "system_ts": st.system_ts,
             "db_on": st.db_on,
             "db_ts": st.db_ts,
+            "actuators": {
+                "DL": bool(getattr(st, "dl_on", False)),
+            },
         }
 
     def _write_alarm_event(self, device: str, device_name: str, active: bool, reason: str | None = None) -> None:

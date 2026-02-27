@@ -1,3 +1,5 @@
+<div class="alarm-overlay" [class.alarm-active]="alarmActive" aria-hidden="true"></div>
+
 <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:10px; align-items:start;">
 
   <!-- Floorplan -->
@@ -15,13 +17,15 @@
     <app-dms [apiBase]="apiBase" device="PI1"></app-dms>
     <app-security-status [apiBase]="apiBase" device="PI1"></app-security-status>
     <app-ds1 [apiBase]="apiBase" device="PI1"></app-ds1>
+    <app-light-switch [apiBase]="apiBase" device="PI1"></app-light-switch>
     <app-web-cam></app-web-cam>
   </div>
-  
+
   <div *ngIf="selectedPi === 'PI2'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
     <app-timer [apiBase]="apiBase" device="PI2"></app-timer>
     <app-gsg [apiBase]="apiBase" device="PI2"></app-gsg>
   </div>
+
   <!-- PI3 widgets -->
   <div *ngIf="selectedPi === 'PI3'" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
     <app-brgb [apiBase]="apiBase" device="PI3"></app-brgb>

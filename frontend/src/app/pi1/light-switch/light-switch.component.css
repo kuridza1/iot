@@ -1,0 +1,238 @@
+/* ── Light Switch — Push Button Widget ──────────────────── */
+.switch-shell {
+  --on:      #f5c842;
+  --err:     #e74c3c;
+  --neutral: #6a5a48;
+  --text:    #d4cfc9;
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  background: linear-gradient(160deg, #1e1a16 0%, #12100e 60%, #0e0c0a 100%);
+
+  border: 12px solid #966e52;
+  outline: 3px solid #704934;
+  outline-offset: -5px;
+  border-radius: 28px;
+  padding: 14px 18px 18px;
+  width: 160px;
+
+  box-shadow:
+    12px 16px 40px rgba(0,0,0,0.85),
+    inset 0 0 30px rgba(0,0,0,0.65);
+
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  user-select: none;
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow 500ms;
+}
+
+.switch-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 2px #352219;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.switch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.switch-device {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #7a6a58;
+}
+
+.switch-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--neutral);
+  box-shadow: 0 0 4px #000;
+  transition: background 400ms, box-shadow 400ms;
+}
+.switch-status-dot.on { background: var(--on); box-shadow: 0 0 10px var(--on); }
+
+/* ── Button mount plate ──────────────────────────────────── */
+.btn-plate {
+  width: 100px;
+  height: 100px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #2a2218 0%, #1a1510 100%);
+  border: 2px solid #3a2e22;
+  box-shadow:
+    inset 0 3px 8px rgba(0,0,0,0.9),
+    inset 0 -1px 0 rgba(255,255,255,0.03),
+    0 1px 0 rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+/* ── The actual push button ──────────────────────────────── */
+.push-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  outline: none;
+  touch-action: manipulation;
+}
+.push-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.push-btn:focus-visible .btn-ring {
+  box-shadow: 0 0 0 3px rgba(245,200,66,0.4);
+}
+
+/* Outer ring — fixed housing */
+.btn-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #3a3028 0%, #1e1810 100%);
+  box-shadow:
+    0 6px 14px rgba(0,0,0,0.85),
+    0 2px 0 rgba(255,255,255,0.05) inset,
+    0 -3px 0 rgba(0,0,0,0.6) inset;
+  border: 2px solid #4a3d2e;
+  transition: border-color 300ms;
+}
+
+/* Inner cap — the part that physically moves */
+.btn-cap {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #4a3d30 0%, #2e2418 100%);
+  box-shadow:
+    0 5px 12px rgba(0,0,0,0.85),
+    0 2px 0 rgba(255,255,255,0.09) inset,
+    0 -2px 0 rgba(0,0,0,0.55) inset;
+  transition:
+    transform 80ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    box-shadow 80ms ease,
+    background 350ms ease;
+  will-change: transform;
+}
+
+/* Specular highlight on cap */
+.btn-cap::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  width: 40%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 80%);
+  pointer-events: none;
+}
+
+/* Light icon engraved on cap */
+.btn-symbol {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.btn-symbol svg {
+  width: 22px;
+  height: 22px;
+  opacity: 0.3;
+  transition: opacity 350ms, filter 350ms, stroke 350ms;
+  stroke: var(--text);
+  fill: none;
+}
+
+/* ── ON state ────────────────────────────────────────────── */
+.push-btn.is-on .btn-ring {
+  border-color: #8a6a30;
+}
+.push-btn.is-on .btn-cap {
+  background: linear-gradient(145deg, #5a4a38 0%, #3a2e20 100%);
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.7),
+    0 0 20px rgba(245,200,66,0.3),
+    0 2px 0 rgba(255,255,255,0.07) inset,
+    0 -2px 0 rgba(0,0,0,0.5) inset;
+}
+.push-btn.is-on .btn-symbol svg {
+  opacity: 1;
+  stroke: var(--on);
+  filter: drop-shadow(0 0 7px rgba(245,200,66,0.85));
+}
+
+/* ── Press animation ─────────────────────────────────────── */
+.push-btn:not(:disabled):active .btn-cap,
+.push-btn.pressing .btn-cap {
+  transform: scale(0.91) translateY(3px);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.95),
+    0 1px 0 rgba(255,255,255,0.04) inset;
+}
+
+/* ── Countdown ring ──────────────────────────────────────── */
+.countdown-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.countdown-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.countdown-circle {
+  fill: none;
+  stroke: var(--on);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  opacity: 0.5;
+  transition: stroke-dashoffset 1s linear;
+}
+
+/* ── Label & status ──────────────────────────────────────── */
+.state-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--neutral);
+  transition: color 300ms;
+}
+.state-label.on { color: var(--on); }
+
+.status-msg {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  height: 14px;
+  color: transparent;
+  transition: color 200ms;
+}
+.status-msg.ok  { color: #2ecc71; }
+.status-msg.err { color: var(--err); }
