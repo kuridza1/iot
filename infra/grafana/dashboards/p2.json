@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 0,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -191,7 +191,7 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      (r.code == \"GSG_X\" or r.code == \"GSG_Y\" or r.code == \"GSG_Z\") and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> keep(columns: [\"_time\", \"_value\", \"code\"])\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"GSG_MAG\" and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\"])",
           "refId": "A"
         }
       ],
@@ -745,5 +745,5 @@
   "timezone": "browser",
   "title": "pi2",
   "uid": "adjcczn",
-  "version": 20
+  "version": 22
 }

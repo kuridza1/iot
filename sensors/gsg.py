@@ -7,30 +7,30 @@ from typing import Callable
 def run_gsg_loop(
     delay: float,
     threshold: float,
-    callback: Callable[[bool], None],
+    callback: Callable[[bool, float], None],
     stop_event,
     simulated: bool = True,
 ) -> None:
     """
-    Simulated OR real MPU6050 shake detector (GSG).
-
-    callback(True) kada je detektovan pokret.
+    callback(moving, magnitude)
+    moving=True kada abs(magnitude-baseline) > threshold
     """
 
     if simulated:
         baseline = 1.0 + random.uniform(-0.02, 0.02)
 
         while not stop_event.is_set():
-            magnitude = baseline + random.uniform(-0.03, 0.03)
-
+            magnitude = baseline + random.uniform(-0.15, 0.15)
+            # povremeni "udar" (simulirani pomeraj)
             if random.random() < 0.08:
                 magnitude += random.choice([-1, 1]) * random.uniform(threshold + 0.05, threshold + 0.8)
 
-            if abs(magnitude - baseline) > threshold:
-                callback(True)
+            moving = abs(magnitude - baseline) > threshold
+
+            # uvek šalji i moving i magnitude
+            callback(bool(moving), float(magnitude))
 
             time.sleep(delay)
-
         return
 
     try:
@@ -50,12 +50,12 @@ def run_gsg_loop(
         y = accel[1] / 16384.0
         z = accel[2] / 16384.0
 
-        magnitude = math.sqrt(x*x + y*y + z*z)
+        magnitude = math.sqrt(x * x + y * y + z * z)
 
         if baseline is None:
             baseline = magnitude
 
-        if abs(magnitude - baseline) > threshold:
-            callback(True)
+        moving = abs(magnitude - baseline) > threshold
+        callback(bool(moving), float(magnitude))
 
         time.sleep(delay)

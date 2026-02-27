@@ -3,7 +3,7 @@
     "pi_id": "PI1",
     "device_name": "SmartDoor",
     "location": "FrontDoor",
-    "default_simulated": false
+    "default_simulated": true
   },
 
   "mqtt": {
