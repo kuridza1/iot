@@ -30,9 +30,9 @@ class IRReceiver:
     burst_prob: float = 0.15
     sim_codes: Optional[list[str]] = None
 
-    one_threshold_us: int = 1000   # HIGH pulse > threshold => bit 1 else 0
-    end_idle_count: int = 10000    # heuristic “quiet” counter to end a frame
-    max_bits: int = 34             # truncate bitstring length
+    one_threshold_us: int = 1000  
+    end_idle_count: int = 10000  
+    max_bits: int = 34           
 
     code_map: Optional[Dict[str, str]] = None
 
@@ -56,7 +56,7 @@ class IRReceiver:
             ]
             self.code_map = {hex(code): name for code, name in zip(buttons, names)}
 
-        self._rpi = None  # will hold imported RPi.GPIO in real mode
+        self._rpi = None 
 
         if not self.simulated:
             if not GPIO_HELPER.available:
@@ -67,12 +67,8 @@ class IRReceiver:
             self._rpi.setmode(self._rpi.BCM)
             self._rpi.setwarnings(False)
 
-            # HX1838 usually idles HIGH; enable pull-up.
             self._rpi.setup(self.pin, self._rpi.IN, pull_up_down=self._rpi.PUD_UP)
 
-    # -------------------------
-    # Public API
-    # -------------------------
 
     def run_loop(self, callback: Callable[[str], None], stop_event) -> None:
         if self.simulated:
@@ -80,9 +76,7 @@ class IRReceiver:
         else:
             self._run_real(callback, stop_event)
 
-    # -------------------------
-    # Simulation
-    # -------------------------
+
 
     def _run_sim(self, callback: Callable[[str], None], stop_event) -> None:
         while not stop_event.is_set():
@@ -90,12 +84,8 @@ class IRReceiver:
                 callback(random.choice(self.sim_codes))
             time.sleep(float(self.delay))
 
-    # -------------------------
-    # Real decoding (pulse timing)
-    # -------------------------
 
     def _read_pin(self) -> int:
-        # 0/1 from RPi.GPIO.input
         return int(self._rpi.input(self.pin))
 
     def _get_binary(self) -> int:
@@ -105,7 +95,6 @@ class IRReceiver:
         previous = 0
         value = self._read_pin()
 
-        # Wait for activity: line goes LOW when IR bursts arrive
         while value:
             time.sleep(0.0001)
             value = self._read_pin()
@@ -130,7 +119,6 @@ class IRReceiver:
             previous = value
             value = self._read_pin()
 
-        # Convert HIGH pulse widths into bits
         for typ, tme_us in command:
             if typ == 1:
                 if tme_us > int(self.one_threshold_us):

@@ -75,7 +75,6 @@ def main() -> None:
         publisher.enqueue(ev)
         print(f"\n[{ts_str()}] {kind.upper()} {code}: value={value} unit={unit} simulated={simulated}")
 
-    # ---------- Actuators ----------
     rgb_cfg = cfg.get("BRGB", {"simulated": default_simulated})
     lcd_cfg = cfg.get("LCD", {"simulated": default_simulated})
 
@@ -95,10 +94,8 @@ def main() -> None:
         address=int(lcd_cfg.get("address", 0x27)),
     )
 
-    # LCD enable/disable (logical)
     lcd_enabled = True
 
-    # ---------- PIR ----------
     dpir_cfg = cfg.get(
         "DPIR3",
         {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True},
@@ -118,7 +115,6 @@ def main() -> None:
         with people_lock:
             p = int(people_inside)
 
-        # MOTION_WHEN_EMPTY: samo kad je prazno
         if p <= 0:
             payload = {
                 "device": pi1_id,
@@ -152,12 +148,10 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # ---------- DHT / IR configs ----------
     dht1_cfg = cfg.get("DHT1", {"delay_sec": 3.0, "simulated": default_simulated})
     dht2_cfg = cfg.get("DHT2", {"delay_sec": 3.0, "simulated": default_simulated})
     ir_cfg = cfg.get("IR", {"delay_sec": 0.25, "simulated": default_simulated})
 
-    # Rotation timing
     rotate_period = float(lcd_cfg.get("rotate_period_sec", 2.5))
 
     lcd_lock = threading.Lock()
@@ -191,8 +185,7 @@ def main() -> None:
             return float(v)
         except Exception:
             return None
-    # --- PEOPLE INSIDE (cache) ---
-    people_device = str(server_cfg.get("people_device", "PI1"))  # gde se publikuje PEOPLE_INSIDE
+    people_device = str(server_cfg.get("people_device", "PI1")) 
     people_code = str(server_cfg.get("people_code", "PEOPLE_INSIDE"))
 
     people_lock = threading.Lock()
@@ -215,20 +208,19 @@ def main() -> None:
                 with people_lock:
                     people_inside = v
 
-            time.sleep(1.0)  # polling period (1s je ok za ovo)
+            time.sleep(1.0)  
     order = ["DHT1", "DHT2", "DHT3"]
     idx = 0
 
     def render_screen(name: str, tval: Optional[float], hval: Optional[float]) -> str:
         if tval is None or hval is None:
             return f"{name}\nNo data"
-        # two-line LCD-friendly string
         return f"{name} T:{tval:4.1f}C\nH:{hval:4.1f}%"
 
     def refresh_lcd_once() -> str:
         nonlocal idx
 
-        name = order[idx % len(order)]  # current screen (no advance)
+        name = order[idx % len(order)] 
         if name == "DHT3":
             t3 = fetch_latest(dht3_device, "DHT3_TEMP")
             h3 = fetch_latest(dht3_device, "DHT3_HUM")
@@ -247,7 +239,6 @@ def main() -> None:
         if lcd_enabled:
             lcd.show(text)
 
-        # publish LCD text for frontend preview
         emit("actuator", "LCD_TEXT", text, None, lcd_sim)
 
         return text
@@ -276,12 +267,10 @@ def main() -> None:
             if lcd_enabled:
                 lcd.show(text)
 
-            # publish LCD text for frontend preview
             emit("actuator", "LCD_TEXT", text, None, lcd_sim)
 
             time.sleep(rotate_period)
 
-    # Start rotate loop ONCE (prevents “random fast swapping” from duplicate threads)
     lcd_rotate_started = False
     lcd_rotate_lock = threading.Lock()
     with lcd_rotate_lock:
@@ -290,7 +279,7 @@ def main() -> None:
             print(f"[{ts_str()}] LCD rotate loop starting (period={rotate_period:.2f}s)")
             threading.Thread(target=lcd_rotate_loop, daemon=True).start()
             threading.Thread(target=people_poll_loop, daemon=True).start()
-    # ---------- DHT1 thread ----------
+
     threading.Thread(
         target=run_dht_loop,
         args=(
@@ -309,7 +298,6 @@ def main() -> None:
         daemon=True,
     ).start()
 
-    # ---------- DHT2 thread ----------
     threading.Thread(
         target=run_dht_loop,
         args=(
@@ -328,7 +316,6 @@ def main() -> None:
         daemon=True,
     ).start()
 
-    # ---------- IR thread ----------
     threading.Thread(
         target=run_ir_loop,
         args=(
@@ -343,7 +330,6 @@ def main() -> None:
         daemon=True,
     ).start()
 
-    # ---------- MQTT command listener (frontend -> server -> MQTT -> PI3) ----------
     broker = str(mqtt_cfg.get("broker", "localhost"))
     port = int(mqtt_cfg.get("port", 1883))
     topic_prefix = str(mqtt_cfg.get("topic_prefix", "")).strip().rstrip("/")
@@ -388,7 +374,6 @@ def main() -> None:
             refresh_lcd_once()
 
         else:
-            # ignore unknown commands
             return
 
     def _on_cmd_msg(client, userdata, msg):

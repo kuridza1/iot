@@ -26,7 +26,6 @@ def run_gsg_loop(
 
             moving = abs(magnitude - baseline) > threshold
 
-            # uvek šalji i moving i magnitude
             callback(bool(moving), float(magnitude))
 
             time.sleep(delay)

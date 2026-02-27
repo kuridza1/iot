@@ -28,13 +28,6 @@ class AlarmState:
 
 class AlarmService:
     """
-    Passive cache only.
-
-    - NO alarm logic
-    - NO pin validation
-    - NO MQTT commands
-    - NO writing additional ALARM/ARMED events
-
     The PI devices are the source of truth and emit:
       - ALARM_STATE, ALARM_REASON
       - DB / DL actuator telemetry

@@ -24,7 +24,6 @@ class InfluxWriter:
             pass
 
     def write_event(self, payload: Dict[str, Any]) -> None:
-        # payload is TelemetryEvent.to_payload()
         device = str(payload.get("device", "unknown"))
         device_name = str(payload.get("device_name", "unknown"))
         kind = str(payload.get("kind", "unknown"))         
@@ -47,7 +46,6 @@ class InfluxWriter:
         if unit is not None:
             p = p.tag("unit", str(unit))
 
-        # Influx fields must be scalar
         if isinstance(value, bool):
             p = p.field("value_bool", value)
             p = p.field("value_num", 1.0 if value else 0.0)
@@ -56,8 +54,6 @@ class InfluxWriter:
         else:
             p = p.field("value_str", str(value))
 
-
-        # timestamp in seconds → convert to ns precision
         p = p.time(int(ts * 1_000_000_000), WritePrecision.NS)
 
         self._write_api.write(bucket=self._bucket, org=self._org, record=p)

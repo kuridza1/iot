@@ -8,30 +8,18 @@ from helper.helper import GPIO as GPIO_HELPER
 
 @dataclass
 class DHT11:
-    """
-    @brief DHT11 reader (simulated or real).
-
-    - simulated=True  -> random walk around (temp_c_start, hum_pct_start)
-    - simulated=False -> bit-banged DHT11 using RPi.GPIO directly (helper GPIO has no input support)
-
-    callback(temp_c, hum_pct)
-    """
     simulated: bool
     pin: int
 
-    # loop params
     delay: float = 2.0
 
-    # simulation params
     temp_c_start: float = 22.0
     hum_pct_start: float = 45.0
 
-    # internal
     _rpi: Optional[object] = None
 
-    # DHT11 timing constants (typical)
-    _WAKEUP_S: float = 0.020       # 20ms start signal
-    _TIMEOUT_S: float = 0.010      # generic timeout for waits (10ms)
+    _WAKEUP_S: float = 0.020      
+    _TIMEOUT_S: float = 0.010      
 
     def __post_init__(self) -> None:
         if not self.simulated:
@@ -64,7 +52,6 @@ class DHT11:
             time.sleep(float(self.delay))
 
     def _wait_while(self, level: int, timeout_s: float) -> bool:
-        """Wait while pin stays at 'level'. Returns True if it changed, False on timeout."""
         t0 = time.perf_counter()
         while int(self._rpi.input(self.pin)) == level:
             if (time.perf_counter() - t0) > timeout_s:
@@ -72,44 +59,35 @@ class DHT11:
         return True
 
     def _read_dht11_once(self) -> Optional[tuple[float, float]]:
-        """
-        Returns (temp_c, hum_pct) or None on failure.
-        DHT11 frame: 40 bits = 5 bytes:
-          [humidity_int, humidity_dec, temp_int, temp_dec, checksum]
-        """
+
         RPI = self._rpi
 
-        # Start signal: pull LOW for >=18ms (use 20ms), then release HIGH briefly, then input
         RPI.setup(self.pin, RPI.OUT)
         RPI.output(self.pin, RPI.LOW)
         time.sleep(self._WAKEUP_S)
 
         RPI.output(self.pin, RPI.HIGH)
-        time.sleep(0.00004)  # 40us
+        time.sleep(0.00004)  
         RPI.setup(self.pin, RPI.IN)
 
-        # Sensor response: LOW ~80us, HIGH ~80us (we just wait for transitions with timeouts)
-        if not self._wait_while(1, self._TIMEOUT_S):  # wait for line to go LOW
+        if not self._wait_while(1, self._TIMEOUT_S):  
             return None
-        if not self._wait_while(0, self._TIMEOUT_S):  # wait for line to go HIGH
+        if not self._wait_while(0, self._TIMEOUT_S): 
             return None
-        if not self._wait_while(1, self._TIMEOUT_S):  # wait for line to go LOW (start of data)
+        if not self._wait_while(1, self._TIMEOUT_S):  
             return None
 
         data = [0, 0, 0, 0, 0]
 
-        # Read 40 bits
         for bit_i in range(40):
-            # Each bit: LOW 50us, then HIGH length encodes 0/1
-            if not self._wait_while(0, self._TIMEOUT_S):  # wait for HIGH to start
+            if not self._wait_while(0, self._TIMEOUT_S):  
                 return None
 
             t_high_start = time.perf_counter()
-            if not self._wait_while(1, self._TIMEOUT_S):  # wait for HIGH to end
+            if not self._wait_while(1, self._TIMEOUT_S):  
                 return None
             high_len = time.perf_counter() - t_high_start
 
-            # DHT11: ~26-28us => 0, ~70us => 1. Use threshold ~50us.
             bit = 1 if high_len > 0.00005 else 0
 
             byte_i = bit_i // 8

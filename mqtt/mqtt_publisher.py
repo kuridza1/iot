@@ -12,10 +12,6 @@ from helper.telemetry import TelemetryEvent
 
 
 class MqttBatchPublisher:
-    """@brief Daemon publisher that sends events in batches to MQTT.
-
-    Uses Queue (thread-safe) to avoid manual mutex locks and deadlocks.
-    """
 
     def __init__(self, mqtt_cfg: Dict[str, Any]) -> None:
         self._enabled = bool(mqtt_cfg.get("enabled", True))
@@ -42,7 +38,6 @@ class MqttBatchPublisher:
     def start(self) -> None:
         if not self._enabled:
             return
-        # network loop in background thread managed by paho
         self._client.connect(self._broker, self._port, keepalive=60)
         self._client.loop_start()
 
@@ -89,7 +84,6 @@ class MqttBatchPublisher:
         last_flush = time.time()
 
         while not self._stop.is_set():
-            # Wait a bit for events; flush on timeout or when batch is full
             timeout = max(0.1, self._flush_interval / 2.0)
             try:
                 ev = self._q.get(timeout=timeout)
@@ -108,22 +102,16 @@ class MqttBatchPublisher:
                 batch.clear()
                 last_flush = now
 
-        # final flush
         if batch:
             self._flush(batch)
 
     def _flush(self, events: List[TelemetryEvent]) -> None:
         if not events:
             return
-
-        # If broker is down, we still don't want deadlock; we just try publish.
-        # Keep critical section minimal: no locks around queue; only paho call.
         for ev in events:
             topic = ev.default_topic(self._topic_prefix)
             payload = json.dumps(ev.to_payload(), ensure_ascii=False)
             try:
-                # publish is thread-safe with loop_start, but keep it simple
                 self._client.publish(topic, payload, qos=self._qos, retain=self._retain)
             except Exception:
-                # optionally: you can log to console; avoid blocking
                 pass

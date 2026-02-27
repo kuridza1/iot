@@ -1,4 +1,3 @@
-# pi2/main.py (aligned to PI1 main, with GSG magnitude + PI1 alarm trigger)
 from __future__ import annotations
 
 import json
@@ -40,7 +39,6 @@ def main() -> None:
     device_name = str(device_cfg.get("device_name", "Device"))
     default_simulated = bool(device_cfg.get("default_simulated", True))
 
-    # ----- MQTT publisher for telemetry/events (your existing pipeline) -----
     publisher = MqttBatchPublisher(cfg.get("mqtt", {}))
     publisher.start()
 
@@ -48,7 +46,6 @@ def main() -> None:
         publisher, device=pi_id, device_name=device_name, ts_str=ts_str
     )
 
-    # ----- components -----
     ds2_cfg = cfg.get("DS2", {"simulated": default_simulated, "pin": 23, "active_high": True})
     btn_cfg = cfg.get("BTN", {"simulated": default_simulated, "pin": 24, "active_high": True})
     timer_cfg = cfg.get("4SD", {"simulated": default_simulated})
@@ -61,7 +58,6 @@ def main() -> None:
     btn = Button(**btn_cfg)
     timer = FourDigitTimer(simulated=timer_sim)
 
-    # state: BTN adds N seconds (shared between loops and cmd listener)
     btn_add_seconds_ref: Dict[str, Any] = {"value": int(cfg.get("BTN_ADD_SECONDS", 0))}
 
     def emit_timer_state(reason: str) -> None:
@@ -73,13 +69,11 @@ def main() -> None:
         emit("actuator", "4SD_BLINK", bool(blink), None, timer_sim)
         emit("actuator", "4SD_STATE_REASON", str(reason), None, timer_sim)
 
-    # emit init immediately
     emit("sensor", "DS2", bool(ds2.isOn()), None, ds2_sim)
     emit("sensor", "BTN", bool(btn.isOn()), None, btn_sim)
     emit_timer_state("BOOT")
     emit("actuator", "BTN_ADD_SEC", int(btn_add_seconds_ref["value"]), "sec", timer_sim)
 
-    # ----- MQTT command listener (front -> server -> mqtt -> pi2) -----
     mqtt_cfg = cfg.get("mqtt", {})
     broker = str(mqtt_cfg.get("broker", "localhost"))
     port = int(mqtt_cfg.get("port", 1883))
@@ -99,15 +93,12 @@ def main() -> None:
     )
     cmd_listener.start()
 
-    # ----- PI2 -> PI1 alarm publisher (for GSG threshold) -----
     alarm_pub = mqtt.Client(client_id=f"{pi_id}-alarm-pub", clean_session=True)
     alarm_pub.connect(broker, port, keepalive=60)
     alarm_pub.loop_start()
 
-    # ----- loops -----
     threads: list[threading.Thread] = []
 
-    # PIR
     dpir_cfg = cfg.get(
         "DPIR2",
         {"delay_sec": 1.5, "simulated": default_simulated, "pin": 17, "pull": "down", "active_high": True},
@@ -133,7 +124,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # Ultrasonic
     dus_cfg = cfg.get("DUS2", {"delay_sec": 2.0, "simulated": default_simulated, "trig_pin": 5, "echo_pin": 6})
     dus_sim = bool(dus_cfg.get("simulated", default_simulated))
 
@@ -152,7 +142,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # GSG (movement + magnitude) + trigger PI1 alarm on threshold
     gsg_cfg = cfg.get("GSG", {"delay_sec": 0.5, "simulated": default_simulated, "threshold": 0.5})
     gsg_sim = bool(gsg_cfg.get("simulated", default_simulated))
     gsg_threshold = float(gsg_cfg.get("threshold", 0.5))
@@ -163,11 +152,9 @@ def main() -> None:
     def on_gsg(moving: bool, mag: float) -> None:
         nonlocal last_alarm_ts
 
-        # UI/telemetry
         emit("sensor", "GSG", bool(moving), None, gsg_sim)
         emit("telemetry", "GSG_MAG", float(mag), None, gsg_sim)
 
-        # Trigger PI1 alarm only on "big move" and with cooldown
         if moving:
             now = time.time()
             if (now - last_alarm_ts) >= alarm_cooldown_sec:
@@ -193,7 +180,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # DHT3
     dht3_cfg = cfg.get("DHT3", {"delay_sec": 3.0, "simulated": default_simulated})
     dht3_sim = bool(dht3_cfg.get("simulated", default_simulated))
 
@@ -214,7 +200,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # BTN physical loop: rising edge => stop blink + add seconds
     last_btn = False
 
     def on_btn(v: bool) -> None:
@@ -236,7 +221,6 @@ def main() -> None:
     t.start()
     threads.append(t)
 
-    # Timer loop: emits display + rem (+ finished)
     def on_tick(text: str, rem: int) -> None:
         emit("actuator", "4SD", text, None, timer_sim)
         emit("actuator", "4SD_REM", int(rem), "sec", timer_sim)

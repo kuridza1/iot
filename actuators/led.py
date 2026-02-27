@@ -34,5 +34,4 @@ class Led:
         GPIO.output(self.pin, value)
 
     def cleanup(self) -> None:
-        # keeping method for symmetry
         pass

@@ -73,18 +73,15 @@ class PiCmdListener:
         cmd = str(payload.get("cmd", "")).strip()
         value = payload.get("value", None)
 
-        # 1) PIN sa fronta (isti efekat kao CLI "6")
         if cmd == "PIN_SUBMIT":
             pin = "" if value is None else str(value).strip()
             self._alarm.submit_pin(pin, source="FE")
-            # odmah emituj state (UI real-time)
             try:
                 self._emit("security", "ALARM_STATE", self._alarm.state.value, None, True)
             except Exception:
                 pass
             return
 
-        # 2) Svetlo vrata (DL)
         if cmd == "DL":
             if bool(value):
                 self._led.on()
@@ -93,7 +90,6 @@ class PiCmdListener:
             self._emit("actuator", "DL", self._led.isOn(), None, self._led_sim)
             return
 
-        # 3) Buzzer (DB)
         if cmd == "DB":
             if bool(value):
                 self._buzzer.on()
@@ -102,7 +98,6 @@ class PiCmdListener:
             self._emit("actuator", "DB", self._buzzer.isOn(), None, self._buz_sim)
             return
 
-        # 4) DS1 simulacija (door switch)
         if cmd == "DS1":
             if bool(value):
                 self._button.on()
@@ -111,7 +106,6 @@ class PiCmdListener:
             self._emit("actuator", "DS1", self._button.isOn(), None, self._btn_sim)
             return
 
-        # 5) Incident alarm (server-side)
         if cmd == "ALARM":
             active = bool(value)
             if active:
@@ -121,7 +115,6 @@ class PiCmdListener:
             self._emit("actuator", "DB", self._buzzer.isOn(), None, self._buz_sim)
             return
         
-                # 5) Security alarm trigger (from other devices, e.g. PI2 GSG)
         if cmd == "ALARM_SET":
             active = True
             reason = "GSG"
@@ -145,7 +138,6 @@ class PiCmdListener:
                 except Exception:
                     self._alarm.disarm(f"MQTT:{reason}")
 
-            # UI refresh (AlarmController već emituje ALARM_STATE, ali ovo je harmless)
             try:
                 self._emit("security", "ALARM_STATE", self._alarm.state.value, None, True)
             except Exception:

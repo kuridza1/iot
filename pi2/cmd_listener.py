@@ -1,4 +1,3 @@
-# pi2/cmd_listener.py
 from __future__ import annotations
 
 import json
@@ -9,11 +8,6 @@ import paho.mqtt.client as mqtt
 
 
 class Pi2CmdListener:
-    """
-    Same structure as PI1 PiCmdListener.
-    Listens on: {topic_prefix}/{device}/cmd
-    Expects JSON payload: {"cmd": "...", "value": ...}
-    """
 
     def __init__(
         self,
@@ -22,12 +16,11 @@ class Pi2CmdListener:
         client_id: str,
         topic_prefix: str,
         device: str,
-        timer,              # FourDigitTimer
+        timer,             
         emit,
         stop_event: threading.Event,
         timer_simulated: bool = True,
-        # optional: BTN_ADD_SECONDS is part of PI2 state
-        btn_add_seconds_ref: Optional[Dict[str, Any]] = None,  # {"value": int}
+        btn_add_seconds_ref: Optional[Dict[str, Any]] = None,  
     ) -> None:
         self._topic = f"{topic_prefix.rstrip('/')}/{device}/cmd"
         self._timer = timer
@@ -85,9 +78,7 @@ class Pi2CmdListener:
         cmd = str(payload.get("cmd", "")).strip()
         value = payload.get("value", None)
 
-        # --- Timer commands (match server mappings) ---
 
-        # TIMER_SET: value can be {"seconds": 60} or 60
         if cmd == "TIMER_SET":
             sec = 0
             if isinstance(value, dict):
@@ -99,7 +90,6 @@ class Pi2CmdListener:
             self._emit_timer_state("CMD_TIMER_SET")
             return
 
-        # TIMER_RUN: value can be {"running": true} or true/false
         if cmd == "TIMER_RUN":
             running = True
             if isinstance(value, dict):
@@ -113,14 +103,12 @@ class Pi2CmdListener:
             self._emit_timer_state("CMD_TIMER_RUN")
             return
 
-        # TIMER_RESET
         if cmd == "TIMER_RESET":
             self._timer.reset()
             self._emit("actuator", "4SD_RESET", True, None, self._timer_sim)
             self._emit_timer_state("CMD_TIMER_RESET")
             return
 
-        # TIMER_ADD_CONFIG: value {"addSeconds": 5} or 5
         if cmd == "TIMER_ADD_CONFIG":
             add_sec = 5
             if isinstance(value, dict):
@@ -134,7 +122,6 @@ class Pi2CmdListener:
             self._emit("actuator", "BTN_ADD_SEC", int(add_sec), "sec", self._timer_sim)
             return
 
-        # BTN_PRESS: add N sec and stop blinking
         if cmd == "BTN_PRESS":
             add_sec = 5
             if self._btn_add_ref is not None:

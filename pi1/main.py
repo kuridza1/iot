@@ -65,16 +65,13 @@ def main() -> None:
         close_doors_cb=close_doors,
     )
 
-    # Emit init state odmah
     emit("security", "ALARM_STATE", alarm.state.value, None, True)
     emit("actuator", "DB", buzzer.isOn(), None, bool(buz_cfg.get("simulated", True)))
 
-    # ----- MQTT command listener (front -> server -> mqtt -> pi) -----
     mqtt_cfg = cfg.get("mqtt", {})
     broker = str(mqtt_cfg.get("broker", "localhost"))
     port = int(mqtt_cfg.get("port", 1883))
 
-    # mora da se poklopi sa server MQTT_TOPIC_PREFIX
     topic_prefix = str(mqtt_cfg.get("topic_prefix", "devices"))
 
     cmd_listener = PiCmdListener(
@@ -95,7 +92,6 @@ def main() -> None:
     )
     cmd_listener.start()
 
-    # ---------- DUS window + people count ----------
     state_lock = threading.Lock()
     people_inside = 0
     last_count_ts = 0.0
@@ -171,7 +167,6 @@ def main() -> None:
         emit("sensor", "DOOR_DIR", enter_exit, None, True)
         emit("sensor", "PEOPLE_INSIDE", current, "count", True)
 
-    # ---------- DMS mapping + buffer ----------
     dms_map = cfg.get("DMS_MAP", {})
     pin_buf_lock = threading.Lock()
     pin_buf: list[str] = []
@@ -206,7 +201,6 @@ def main() -> None:
 
         alarm.submit_pin(candidate, source="DMS")
 
-    # ---------- loops ----------
     threads = []
     threads.append(start_ds1_loop(button, alarm, emit, btn_cfg, 0.02, stop_event, door_held))
     threads.append(start_pir_loop(cfg.get("DPIR1", {"delay_sec": 1.5, "simulated": True}), on_pir, stop_event))

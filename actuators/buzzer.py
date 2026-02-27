@@ -6,7 +6,6 @@ from helper.helper import GPIO
 
 @dataclass
 class Buzzer:
-    """@brief Buzzer actuator (real GPIO or simulated)."""
     simulated: bool
     pin: int
     active_high: bool = True

@@ -1,4 +1,3 @@
-# server.py
 from __future__ import annotations
 
 import time
@@ -29,7 +28,6 @@ from config import (
     ALARM_PIN,
 )
 
-# -------------------- Flask + CORS --------------------
 app = Flask(__name__)
 CORS(
     app,
@@ -37,17 +35,13 @@ CORS(
     supports_credentials=False,
 )
 
-# -------------------- Socket.IO --------------------
-# IMPORTANT:
-# - Threading mode is the most robust with your current codebase (threads + blocking MQTT/IO).
-# - Install: pip install flask-socketio
+
 socketio = SocketIO(
     app,
     cors_allowed_origins=["http://localhost:4200"],
     async_mode="threading",
 )
 
-# -------------------- Core services --------------------
 influx = InfluxWriter(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 reader = InfluxReader(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, bucket=INFLUX_BUCKET)
 
@@ -131,8 +125,8 @@ def on_event(payload: Any) -> None:
     if not isinstance(payload, dict):
         return
 
-    alarm.on_event(payload)   # passive cache
-    ws_emit_evt(payload)      # push to FE
+    alarm.on_event(payload) 
+    ws_emit_evt(payload)  
 
 bridge = MqttToInfluxService(
     broker=MQTT_BROKER,
@@ -144,7 +138,6 @@ bridge = MqttToInfluxService(
 )
 bridge.start()
 
-# -------------------- Socket.IO events --------------------
 @socketio.on("connect")
 def on_connect():
     device = str(request.args.get("device", "")).strip()
@@ -158,7 +151,6 @@ def on_set_device(data):
     data = data or {}
     device = str(data.get("device", "PI1")).strip()
 
-    # leave previous device rooms (keep sid)
     try:
         rooms = list(getattr(request, "rooms", []))
         for r in rooms:
@@ -202,7 +194,7 @@ def on_ws_cmd(data):
     except Exception as e:
         ws_emit_cmd_result(device, cmd_name, False, str(e))
 
-# -------------------- HTTP routes --------------------
+
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -325,7 +317,6 @@ def camera_pi1():
         content_type=r.headers["Content-Type"]
     )
 
-# legacy SSE stub (optional)
 @app.get("/events")
 def events():
     return Response(
@@ -336,5 +327,4 @@ def events():
 
 
 if __name__ == "__main__":
-    # With async_mode="threading" this runs on Werkzeug (fine for local dev).
     socketio.run(app, host="0.0.0.0", port=5000, debug=False)

@@ -14,7 +14,7 @@ class AlarmController:
         pin: str,
         exit_delay_sec: float = 10.0,
         entry_delay_sec: float = 10.0,
-        close_doors_cb: Optional[Callable[[], None]] = None,  # <-- NEW
+        close_doors_cb: Optional[Callable[[], None]] = None, 
     ):
         self.buzzer = buzzer
         self.emit = emit
@@ -23,7 +23,7 @@ class AlarmController:
         self.exit_delay_sec = float(exit_delay_sec)
         self.entry_delay_sec = float(entry_delay_sec)
 
-        self.close_doors_cb = close_doors_cb  # <-- NEW
+        self.close_doors_cb = close_doors_cb 
 
         self.state: AlarmState = AlarmState.DISARMED
 
@@ -35,7 +35,6 @@ class AlarmController:
 
         self.ds1_held = DoorHeldState()
 
-    # ----------------- helpers -----------------
 
     def _set_state(self, new_state: AlarmState, reason: Optional[str] = None) -> None:
         with self._state_lock:
@@ -66,7 +65,6 @@ class AlarmController:
             self.buzzer.off()
             self.emit("actuator", "DB", False, None, True)
 
-    # ----------------- public API -----------------
 
     def arm_begin(self, reason: str = "ARM_BY_PIN") -> None:
         with self._state_lock:
@@ -117,19 +115,16 @@ class AlarmController:
         with self._state_lock:
             st = self.state
 
-        # DISARMED + correct pin => ARM REQUEST
         if st == AlarmState.DISARMED:
             self.arm_begin("PIN_ARM_REQUEST")
             return
 
-        # Any other state + correct pin => DISARM and (optionally) force-close doors
         self.disarm("PIN_DISARM")
 
         if self.close_doors_cb is not None:
             try:
                 self.close_doors_cb()
             except Exception as e:
-                # don't crash alarm logic if simulation close fails
                 self.emit("security", "CLOSE_DOORS_FAILED", str(e), None, True)
 
     def on_door_event(self, door_code: str = "DS1", reason: str = "DOOR_EVENT") -> None:
@@ -158,7 +153,6 @@ class AlarmController:
             self._entry_timer.daemon = True
             self._entry_timer.start()
 
-    # -------- DS1 held > N sec --------
 
     def handle_ds1_level(self, door_open: bool, now: float) -> None:
         if door_open:

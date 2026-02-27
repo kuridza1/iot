@@ -58,26 +58,21 @@ def run_ultrasonic_loop(
         while not stop_event.is_set():
             now = time.time()
 
-            # promena režima
             if now >= mode_until:
                 if mode == "far":
-                    # povremeno neko "prilazi" (enter scenario)
                     if random.random() < near_prob:
                         mode = "near"
                         mode_until = now + near_hold
-                        # skoči u near zonu
                         distance = random.uniform(10.0, THRESH - 5.0)
                     else:
                         mode = "far"
                         mode_until = now + far_hold
                         distance = random.uniform(THRESH + 20.0, 140.0)
                 else:
-                    # iz near se vraćamo u far (exit scenario)
                     mode = "far"
                     mode_until = now + far_hold
                     distance = random.uniform(THRESH + 20.0, 140.0)
 
-            # update distance (mali random-walk oko ciljnog opsega)
             if mode == "near":
                 distance += random.uniform(-3.0, 3.0)
                 distance = min(THRESH - 2.0, max(5.0, distance))
@@ -91,7 +86,6 @@ def run_ultrasonic_loop(
         return
 
 
-    # ---------- REAL SENSOR ----------
     try:
         import RPi.GPIO as GPIO
     except Exception as e:
