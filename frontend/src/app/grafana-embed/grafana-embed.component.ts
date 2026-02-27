@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
       <iframe
         [src]="safeUrl"
         width="100%"
-        height="520"
+        height="840px"
         frameborder="0"
       ></iframe>
     </div>

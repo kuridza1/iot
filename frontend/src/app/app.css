@@ -19,3 +19,88 @@
 .alarm-overlay.alarm-active {
   animation: alarm-pulse 0.6s ease-in-out infinite;
 }
+
+/* Overall page grid */
+.dash {
+  display: grid;
+
+  /* Grafana wider: floorplan 0.8fr, grafana 1fr */
+  grid-template-columns: 0.8fr 1fr;
+
+  gap: 16px;
+  align-items: start;
+}
+
+/* Top row */
+.floorplan { grid-column: 1; }
+.grafana   { grid-column: 2; }
+
+/* Widgets span full width */
+.widgets {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Common widget behavior */
+.widgets .w {
+  min-width: 0; /* prevents overflow inside grid */
+}
+
+/* PI1: explicit “fills space” layout (some stacked, not all) */
+.widgets.pi1 {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  grid-template-areas:
+    "keypad  security lock   light"
+    "cam     cam      .      .";
+}
+
+/* Slot mapping */
+.widgets.pi1 .keypad   { grid-area: keypad; }
+.widgets.pi1 .security { grid-area: security; }
+.widgets.pi1 .lock     { grid-area: lock; }
+.widgets.pi1 .light    { grid-area: light; }
+.widgets.pi1 .cam      { grid-area: cam; }
+
+/* PI2/PI3: compact grid, no huge spread */
+.widgets.pi2,
+.widgets.pi3 {
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+}
+
+/* Responsive fallbacks */
+@media (max-width: 1200px) {
+  .dash { grid-template-columns: 1fr; }
+  .floorplan, .grafana { grid-column: 1; }
+
+  .widgets.pi1 {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+    grid-template-areas:
+      "keypad  security"
+      "lock    light"
+      "cam     cam";
+  }
+
+  .widgets.pi2,
+  .widgets.pi3 {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .widgets.pi2,
+  .widgets.pi3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.dashboard::before,
+.dashboard::after {
+  height: auto !important;
+  inset: 0 !important;
+}/* Prevent a parent from clipping the background layer */
+:host, app-root, body {
+  overflow: visible;
+}
