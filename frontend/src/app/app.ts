@@ -10,7 +10,8 @@ import { SecurityStatus } from './pi1/security-status/security-status';
 import { WebCam } from './pi1/web-cam/web-cam';
 import { LcdComponent } from './pi3/lcd/lcd.component';
 import { BrgbComponent } from './pi3/brgb/brgb.component';
-import { WsService } from './ws.service'; // adjust path if needed
+import { WsService } from './ws.service';
+import { LightSwitch } from './pi1/light-switch/light-switch.component';
 
 @Component({
   selector: 'app-root',
@@ -21,7 +22,7 @@ import { WsService } from './ws.service'; // adjust path if needed
     FloorplanComponent,
     GrafanaEmbedComponent,
     Ds1, Dms, WebCam, SecurityStatus,
-    LcdComponent, BrgbComponent
+    LcdComponent, BrgbComponent, LightSwitch
   ],
 })
 export class App implements OnInit {

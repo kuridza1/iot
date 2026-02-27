@@ -24,7 +24,7 @@
 
   "DPIR1": {
     "delay_sec": 1.5,
-    "simulated": false,
+    "simulated": true,
     "pin": 17,
     "pull": "down",
     "active_high": true
