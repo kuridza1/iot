@@ -191,7 +191,7 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"GSG_MAG\" and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\"])",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"GSG_MAG\" and\r\n      r._field == \"value_num\"\r\n  )\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\"])",
           "refId": "A"
         }
       ],
@@ -282,7 +282,7 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"DUS2\" and\r\n      r._field == \"value_num\"\r\n  )\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"DUS2\" and\r\n      r._field == \"value_num\"\r\n  )\r\n",
           "refId": "A"
         }
       ],
@@ -373,107 +373,11 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"DHT3_HUM\" and\r\n      r._field == \"value_num\"\r\n  )\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI2\" and\r\n    (r.code == \"DHT3_HUM\" or r.code == \"DHT3_TEMP\") and\r\n    r._field == \"value_num\"\r\n  )",
           "refId": "A"
         }
       ],
       "title": "DHT3 — vlažnost",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 15,
-        "y": 8
-      },
-      "id": 1,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P951FEA4DE68E13C5"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n      r._measurement == \"telemetry\" and\r\n      r.device == \"PI2\" and\r\n      r.code == \"DHT3_TEMP\" and\r\n      r._field == \"value_num\"\r\n  )\r\n",
-          "refId": "A"
-        }
-      ],
-      "title": "DHT3 — temperatura",
       "type": "timeseries"
     },
     {
@@ -541,7 +445,7 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DPIR2\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -45m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DPIR2\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
           "refId": "A"
         }
       ],
@@ -556,41 +460,19 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
+            "axisPlacement": "hidden",
+            "fillOpacity": 70,
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [],
           "thresholds": {
@@ -617,12 +499,15 @@
       },
       "id": 5,
       "options": {
+        "alignValue": "left",
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
@@ -632,12 +517,12 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -6h)\r\n  |> filter(fn: (r) =>\r\n      r.device == \"PI2\" and\r\n      r.code == \"DS2\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: if r._value then 1 else 0 }))\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -30m)\r\n  |> filter(fn: (r) =>\r\n      r.device == \"PI2\" and\r\n      r.code == \"DS2\" and\r\n      r._field == \"value_bool\"\r\n  )\r\n  |> map(fn: (r) => ({ r with _value: if r._value then 1 else 0 }))\r\n",
           "refId": "A"
         }
       ],
       "title": "DS2 - Otvaranje/zatvaranje",
-      "type": "timeseries"
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -745,5 +630,5 @@
   "timezone": "browser",
   "title": "pi2",
   "uid": "adjcczn",
-  "version": 22
+  "version": 23
 }

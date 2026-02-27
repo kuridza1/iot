@@ -64,8 +64,18 @@ export const PANES: PiPane[] = [
     color: '#9fd0fe',
     pathD: 'M 147 120 L 147 345 L 32 345 L 32 620 L 310 620 L 310 565 L 293 565 L 293 345 L 340 345 L 340 120 Z',
     labelPos: { x: 185, y: 500 },
-    grafana: { dashboardUrl: 'http://localhost:3000/d/PI3_UID/pi3', params: { kiosk: '1' } },
-  },
+    grafana: {
+        dashboardUrl: 'http://localhost:3000/d/adxz85w/pi3',
+        params: {
+          orgId: '1',
+          from: 'now-30m',
+          to: 'now',
+          timezone: 'browser',
+          showCategory: 'Panel options',
+          kiosk: '1'
+        }
+  },  
+},
 ];
 export const ELEMENTS: HouseElement[] = [
 ];

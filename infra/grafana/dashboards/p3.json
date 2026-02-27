@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 0,
   "links": [],
   "panels": [
     {
@@ -26,7 +26,6 @@
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje da li je buzzer uključen ili isključen.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -44,6 +43,114 @@
             "lineWidth": 0,
             "spanNulls": false
           },
+          "mappings": [
+            {
+              "options": {
+                "false": {
+                  "color": "dark-green",
+                  "index": 1
+                },
+                "true": {
+                  "color": "dark-red",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -30m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DPIR3\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "refId": "A"
+        }
+      ],
+      "title": "DPIR3",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -57,94 +164,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "bool_on_off"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 5,
-      "options": {
-        "alignValue": "center",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "always",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DB\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n",
-          "refId": "A"
-        }
-      ],
-      "title": "buzzer",
-      "type": "state-timeline"
-    },
-    {
-      "datasource": {
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "description": "Prikazuje udaljenost objekta ispred vrata (u cm).",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "left",
-            "fillOpacity": 79,
-            "gradientMode": "hue",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "semi-dark-blue",
-                "value": 0
-              },
-              {
-                "color": "light-blue",
-                "value": 30
-              }
-            ]
-          },
-          "unit": "cm"
+          }
         },
         "overrides": []
       },
@@ -156,96 +176,15 @@
       },
       "id": 1,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
-          "mode": "none",
-          "sort": "none"
-        },
-        "xField": "Time",
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 100
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -5m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DUS1\")\r\n  |> filter(fn: (r) => r._field == \"value_num\")\r\n  |> yield(name: \"mean\")\r\n",
-          "refId": "A"
-        }
-      ],
-      "title": "dus1",
-      "type": "barchart"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P951FEA4DE68E13C5"
-      },
-      "description": "Prikazuje trenutke kada je dugme pritisnuto.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-YlBl"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "axisWidth": 0,
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "yellow",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "bool_on_off"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 4,
-      "options": {
-        "alignValue": "center",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "always",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "none",
+          "mode": "single",
           "sort": "none"
         }
       },
@@ -254,26 +193,24 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "uid": "P951FEA4DE68E13C5"
           },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DS1\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -1h)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI3\" and\r\n    (r.code == \"DHT1_HUM\" or r.code == \"DHT2_HUM\") and\r\n    r._field == \"value_num\"\r\n  )",
           "refId": "A"
         }
       ],
-      "title": "door button",
-      "type": "state-timeline"
+      "title": "DHT1 i DHT2- vlaznost",
+      "type": "timeseries"
     },
     {
       "datasource": {
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje stanje svetla na vratima (ON/OFF).",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "#c72639",
-            "mode": "continuous-RdYlGr"
+            "mode": "thresholds"
           },
           "custom": {
             "axisPlacement": "hidden",
@@ -287,40 +224,81 @@
             "lineWidth": 0,
             "spanNulls": false
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "#00000000",
+                  "index": 0,
+                  "text": "black"
+                },
+                "1": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "blue"
+                },
+                "2": {
+                  "color": "dark-green",
+                  "index": 2,
+                  "text": "green"
+                },
+                "3": {
+                  "color": "yellow",
+                  "index": 4,
+                  "text": "yellow"
+                },
+                "4": {
+                  "color": "dark-red",
+                  "index": 3,
+                  "text": "red"
+                },
+                "5": {
+                  "color": "#14ed92",
+                  "index": 5,
+                  "text": "cyan"
+                },
+                "6": {
+                  "color": "#d104fc",
+                  "index": 6,
+                  "text": "magenta"
+                },
+                "7": {
+                  "color": "text",
+                  "index": 7,
+                  "text": "on"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          },
-          "unit": "bool_on_off"
+          }
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 8
       },
       "id": 3,
       "options": {
-        "alignValue": "center",
+        "alignValue": "left",
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
-        "mergeValues": true,
-        "rowHeight": 0.8,
+        "mergeValues": false,
+        "rowHeight": 0.9,
         "showValue": "auto",
         "tooltip": {
           "hideZeros": false,
@@ -331,15 +309,11 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DL\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")",
+          "query": "import \"strings\"\r\n\r\nfrom(bucket: \"iot\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI3\" and\r\n    r.code == \"BRGB_SET\" and\r\n    r._field == \"value_str\"\r\n  )\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      rr: if strings.containsStr(v: string(v: r._value), substr: \"'r': True\") then 1 else 0,\r\n      gg: if strings.containsStr(v: string(v: r._value), substr: \"'g': True\") then 1 else 0,\r\n      bb: if strings.containsStr(v: string(v: r._value), substr: \"'b': True\") then 1 else 0,\r\n  }))\r\n  |> map(fn: (r) => ({\r\n      _time: r._time,\r\n      _value: r.rr * 4 + r.gg * 2 + r.bb,\r\n      _field: \"BRGB\"          // jedan field da bude jedna serija\r\n  }))\r\n  |> group(columns: [\"_field\"])\r\n  |> sort(columns: [\"_time\"])",
           "refId": "A"
         }
       ],
-      "title": "door light",
+      "title": "BGRB",
       "type": "state-timeline"
     },
     {
@@ -347,24 +321,44 @@
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
-      "description": "Prikazuje detekciju pokreta ispred vrata.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-YlBl"
+            "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "auto",
-            "axisWidth": 0,
-            "fillOpacity": 70,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -379,8 +373,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "bool_on_off"
+          }
         },
         "overrides": []
       },
@@ -388,54 +381,46 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 8
       },
       "id": 2,
       "options": {
-        "alignValue": "center",
         "legend": {
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "always",
         "tooltip": {
           "hideZeros": false,
-          "mode": "none",
+          "mode": "single",
           "sort": "none"
         }
       },
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "from(bucket: \"iot\")\r\n  |> range(start: -15m)\r\n  |> filter(fn: (r) => r._measurement == \"telemetry\")\r\n  |> filter(fn: (r) => r.code == \"DPIR1\")\r\n  |> filter(fn: (r) => r._field == \"value_bool\")\r\n  |> aggregateWindow(every: 5s, fn: last, createEmpty: false)\r\n",
+          "query": "from(bucket: \"iot\")\r\n  |> range(start: -1h)\r\n  |> filter(fn: (r) =>\r\n    r._measurement == \"telemetry\" and\r\n    r.device == \"PI3\" and\r\n    (r.code == \"DHT1_TEMP\" or r.code == \"DHT2_TEMP\") and\r\n    r._field == \"value_num\"\r\n  )",
           "refId": "A"
         }
       ],
-      "title": "dpir1 - detekcija pokreta",
-      "type": "state-timeline"
+      "title": "DHT1 i DHT2 - temperatura",
+      "type": "timeseries"
     }
   ],
   "preload": false,
-  "refresh": "auto",
   "schemaVersion": 42,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "p1",
-  "uid": "ffbvsb4945u68b",
-  "version": 7
+  "title": "pi3",
+  "uid": "adxz85w",
+  "version": 19
 }
