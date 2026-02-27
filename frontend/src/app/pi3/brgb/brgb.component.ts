@@ -8,7 +8,7 @@ import { WsService } from '../../ws.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './brgb.component.html',
-  styleUrls: ['./brgb.component.css'],
+  styleUrls: ['./brgb.component.css', '../../../widget-frame.css'],
 })
 export class BrgbComponent implements OnInit, OnDestroy {
   @Input() apiBase = 'http://localhost:5000';

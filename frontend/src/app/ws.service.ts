@@ -32,8 +32,10 @@ export class WsService {
 
   private pinResultSub = new Subject<PinResult>();
   private cmdResultSub = new Subject<CmdResult>();
-  private snapshotSub = new Subject<Snapshot>();
-  private evtSub = new Subject<any>();
+  private snapshotSub  = new Subject<Snapshot>();
+  private evtSub       = new Subject<any>();
+  private rawEvtSub    = new Subject<any>();      // unfiltered — all devices
+  private rawSnapshotSub = new Subject<Snapshot>(); // unfiltered — all devices
   private connectedSub = new BehaviorSubject<boolean>(false);
 
   connected: Observable<boolean> = this.connectedSub.asObservable().pipe(shareReplay(1));
@@ -57,6 +59,12 @@ export class WsService {
     filter((e) => !e?.device || String(e.device).trim() === String(this.device$.value).trim()),
     shareReplay(1),
   );
+
+  /** All events from all devices — use for global concerns like alarm */
+  rawEvt: Observable<any> = this.rawEvtSub.asObservable();
+
+  /** All snapshots from all devices — use for global concerns like alarm */
+  rawSnapshot: Observable<Snapshot> = this.rawSnapshotSub.asObservable();
 
   constructor(private zone: NgZone) {}
 
@@ -90,13 +98,21 @@ export class WsService {
       try { this.socket?.emit('set_device', { device: this.device$.value }); } catch {}
     });
 
-    this.socket.on('disconnect', () => this.zone.run(() => this.connectedSub.next(false)));
+    this.socket.on('disconnect',    () => this.zone.run(() => this.connectedSub.next(false)));
     this.socket.on('connect_error', () => this.zone.run(() => this.connectedSub.next(false)));
 
-    this.socket.on('pin_result', (m: PinResult) => this.zone.run(() => this.pinResultSub.next(m)));
-    this.socket.on('cmd_result', (m: CmdResult) => this.zone.run(() => this.cmdResultSub.next(m)));
-    this.socket.on('snapshot', (s: Snapshot) => this.zone.run(() => this.snapshotSub.next(s)));
-    this.socket.on('evt', (e: any) => this.zone.run(() => this.evtSub.next(e)));
+    this.socket.on('pin_result', (m: PinResult)  => this.zone.run(() => this.pinResultSub.next(m)));
+    this.socket.on('cmd_result', (m: CmdResult)  => this.zone.run(() => this.cmdResultSub.next(m)));
+
+    this.socket.on('snapshot', (s: Snapshot) => this.zone.run(() => {
+      this.snapshotSub.next(s);
+      this.rawSnapshotSub.next(s);
+    }));
+
+    this.socket.on('evt', (e: any) => this.zone.run(() => {
+      this.evtSub.next(e);
+      this.rawEvtSub.next(e);
+    }));
   }
 
   setDevice(device: string): void {
@@ -105,7 +121,6 @@ export class WsService {
     try { this.socket?.emit('set_device', { device: d }); } catch {}
   }
 
-  // IMPORTANT: commands go over HTTP POST /cmd (server already implements this)
   async sendCmdHttp(device: string, cmd: string, value: any = null): Promise<void> {
     const base = (this.baseUrl || '').replace(/\/+$/, '');
     if (!base) throw new Error('WsService not initialized. Call ensureConnected() first.');
